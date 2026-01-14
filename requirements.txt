@@ -1,0 +1,10 @@
+tensorflow[and-cuda]==2.20.0
+numpy==2.4.0
+matplotlib==3.10.8
+pandas==2.3.3
+scikit-learn==1.8.0
+seaborn==0.13.2
+scipy==1.16.3
+jupyterlab==4.5.1
+pydantic==2.12.5
+torch==2.9.1
