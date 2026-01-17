@@ -1,11 +1,13 @@
 from pydantic import BaseModel
-from interface.merge import Strategy
+from ml.interface.merge import StrategyType
 import json
+from configs.config import METADATA_PATH
 
 
 class MetadataConfig(BaseModel):
     num_models: int
-    merge_strategy: Strategy
+    merge_strategy: StrategyType
+    dataset_path: str
 
     @staticmethod
     def parse_file(file_path: str) -> "MetadataConfig":
@@ -13,3 +15,6 @@ class MetadataConfig(BaseModel):
         with open(file_path, "r") as f:
             data = json.load(f)
         return MetadataConfig(**data)
+
+    def dump(self, path):
+        pass

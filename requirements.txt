@@ -8,3 +8,5 @@ scipy==1.16.3
 jupyterlab==4.5.1
 pydantic==2.12.5
 torch==2.9.1
+torchvision==0.24.1
+tqdm==4.67.1
