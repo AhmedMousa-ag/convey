@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Union, Dict, Optional, Any
 import os
-from configs.config import MODELS_DIR
+from configs.paths import MODELS_DIR
 import copy
 
 
