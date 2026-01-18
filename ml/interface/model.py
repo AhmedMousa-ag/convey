@@ -1,10 +1,34 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 from configs.metadata import MetadataConfig
+from typing import Union, Dict, Any
+from ml.interface.merge import StrategyType, IGreedySoup, ISLERP
 
 
-class Model(ABC):
+class IMergerManager(ABC):
 
-    def __init__(self, meta_data_path: str) -> None:
-        self.metadata: MetadataConfig = MetadataConfig.parse_file(
-            file_path=meta_data_path
-        )
+    def __init__(self, metadata: Union[str, MetadataConfig]) -> None:
+        if isinstance(metadata, str):
+            self.metadata: MetadataConfig = MetadataConfig.parse_file(
+                file_path=metadata
+            )
+        else:
+            self.metadata = metadata
+
+    def get_merger(self, weights: Dict[str, Any] | None = None):
+        if weights is None:
+            weights = self.load_weights()
+        model_name = self.metadata.model_name
+
+        match self.metadata.merge_strategy:
+            case StrategyType.GREEDYSOUP:
+                return IGreedySoup(model_name=model_name, weights=weights)
+            case StrategyType.SLERP:
+                return ISLERP(model_name=model_name, weights=weights)
+            case _:
+                raise ValueError(
+                    f"Expected a strategy type, but found {self.metadata.merge_strategy}"
+                )
+
+    @abstractmethod
+    def load_weights(self) -> Dict[str, Any]:
+        pass

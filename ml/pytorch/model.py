@@ -1,22 +1,12 @@
-from interface.model import Model
-from interface.merge import StrategyType
-from typing import List, Union
-from torch.nn import Module
-from tensorflow.python.keras import Model
-from pytorch.merge import Average
+from configs.metadata import MetadataConfig
+from ml.interface.model import IMergerManager
+import torch
+from typing import Dict, Any
 
 
-class PyTorchModel(Model):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+class TorchMergerManager(IMergerManager):
+    def __init__(self, metadata: str | MetadataConfig) -> None:
+        super().__init__(metadata)
 
-    def merge(self, models: List[Union[Module, Model]]):
-
-        match self.metadata.merge_strategy:
-            case StrategyType.AVERAGE:
-                strategy = Average()
-                return strategy.merge(models)
-            case _:
-                raise NotImplementedError(
-                    f"Merge strategy {self.metadata.merge_strategy} not implemented."
-                )
+    def load_weights(self) -> Dict[str, Any]:
+        return torch.load(self.metadata.weights_path, weights_only=True)
