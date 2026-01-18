@@ -1,12 +1,14 @@
 from abc import ABC, abstractmethod
-from configs.metadata import MetadataConfig
+from configs.metadata import MetadataConfig, SLERPMetadataConfig
 from typing import Union, Dict, Any
 from ml.interface.merge import StrategyType, IGreedySoup, ISLERP
 
 
 class IMergerManager(ABC):
 
-    def __init__(self, metadata: Union[str, MetadataConfig]) -> None:
+    def __init__(
+        self, metadata: Union[str, MetadataConfig, SLERPMetadataConfig]
+    ) -> None:
         if isinstance(metadata, str):
             self.metadata: MetadataConfig = MetadataConfig.parse_file(
                 file_path=metadata
@@ -23,7 +25,11 @@ class IMergerManager(ABC):
             case StrategyType.GREEDYSOUP:
                 return IGreedySoup(model_name=model_name, weights=weights)
             case StrategyType.SLERP:
-                return ISLERP(model_name=model_name, weights=weights)
+                if not isinstance(self.metadata, SLERPMetadataConfig):
+                    raise ValueError(
+                        f"Expected 'SLERPMetadataConfig', but found {type(self.metadata)}"
+                    )
+                return ISLERP(model_name=model_name, weights=weights, t=self.metadata.t)
             case _:
                 raise ValueError(
                     f"Expected a strategy type, but found {self.metadata.merge_strategy}"

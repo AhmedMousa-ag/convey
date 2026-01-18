@@ -26,3 +26,7 @@ class MetadataConfig(BaseModel):
 
         with open(path + CONVERY_FILE_EXT, "w") as f:
             json.dump(self.model_dump(), f, indent=2)
+
+
+class SLERPMetadataConfig(MetadataConfig):
+    t: float
