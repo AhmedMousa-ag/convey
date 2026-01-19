@@ -37,13 +37,12 @@ async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {
                                 MessagesTypes::Subscribe=>{
                                     let metadata = client_msg.message.hashed_metadata;
                                     add_meta_ip(&metadata,&ip_add).await;
-                                    inform_metadata_clients(&metadata).await;
+                                    inform_metadata_clients(&metadata,&ip_add).await;
                                     client_stored_metadata.push(metadata);
                                 },
                             }
                         }
                         if let Err(e) = socket.send(Message::Text(text)).await {
-
                             dbg!("{:?}",e);
                         }
 
@@ -66,13 +65,13 @@ async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {
     //If reached here, the connection is closed.
     for mtdata in client_stored_metadata {
         remove_meta_ip(&mtdata).await;
-        inform_metadata_clients(&mtdata).await;
+        inform_metadata_clients(&mtdata, &ip_add).await;
     }
     remover_sender_chan(&ip_add).await;
 }
 
 ///Informs all clients of each others.
-async fn inform_metadata_clients(metadata_hash: &str) {
+async fn inform_metadata_clients(metadata_hash: &str, curr_ip_address: &str) {
     let all_ips = get_meta_ip_key(metadata_hash).await;
     let msg_to_send_res = serde_json::to_string(&ClientsIPAddresses {
         hashed_metadata: metadata_hash.to_string(),
@@ -80,6 +79,9 @@ async fn inform_metadata_clients(metadata_hash: &str) {
     });
     if let Ok(msg_to_send) = msg_to_send_res {
         for ip in all_ips {
+            if &ip == curr_ip_address {
+                continue;
+            }
             let potential_sender = get_sender_channel(&ip).await;
             if let Some(sender) = potential_sender {
                 if let Err(e) = sender.send(msg_to_send.clone()) {
