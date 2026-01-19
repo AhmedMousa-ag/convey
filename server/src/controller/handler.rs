@@ -27,8 +27,6 @@ async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {
         tokio::select! {
             Some(Ok(msg)) = socket.recv() => {
                 match msg {
-
-
                     Message::Text(text) => {
                         println!("Client {} sent: {}", addr, text);
 

@@ -10,4 +10,6 @@ pydantic==2.12.5
 torch==2.9.1
 torchvision==0.24.1
 tqdm==4.67.1
-pytest
+pytest==9.0.2
+websockets==16.0
+streamlit==1.53.0
