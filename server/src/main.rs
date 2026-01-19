@@ -8,8 +8,10 @@ use std::net::SocketAddr;
 async fn main() {
     let app = Router::new().route("/ws", get(handler));
     let server_address = format!("{}:{}", HOST, PORT);
-    let listener = tokio::net::TcpListener::bind(server_address).await.unwrap();
-
+    let listener = tokio::net::TcpListener::bind(&server_address)
+        .await
+        .unwrap();
+    println!("Will start convery server at: {}", server_address);
     axum::serve(
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),
