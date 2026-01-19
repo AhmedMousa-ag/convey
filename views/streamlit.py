@@ -2,6 +2,7 @@ import streamlit as st
 from configs.metadata import MetadataConfig, METADATA_PATH, StrategyType
 import os
 from controllers.networking.messages import send_msg_sender
+from models.server import SubscribeTopic
 
 
 async def streamlit_GUI():
@@ -19,7 +20,9 @@ async def streamlit_GUI():
                         metadata = MetadataConfig.parse_file(
                             os.path.join(METADATA_PATH, file)
                         )
-                        await send_msg_sender(metadata.hash_self())
+                        await send_msg_sender(
+                            SubscribeTopic(hashed_metadata=metadata.hash_self())
+                        )
         else:
             st.write("There's no available files, please upload one or create one.")
 

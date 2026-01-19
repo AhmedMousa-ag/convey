@@ -1,17 +1,38 @@
-use bincode::{Decode, Encode, config};
+use serde::{Deserialize, Serialize};
+use serde_json::Error;
 
-#[derive(Debug, Clone, Encode, Decode)]
-pub struct MetaDataMessage {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SubscribeTopic {
     pub hashed_metadata: String,
 }
-impl MetaDataMessage {
-    pub fn encode_bytes(&self) -> Vec<u8> {
-        bincode::encode_to_vec(self, config::standard()).unwrap()
-    }
 
-    pub fn decode_bytes(bytes: &[u8]) -> Self {
-        let (messages, _): (Self, usize) =
-            bincode::decode_from_slice(bytes, config::standard()).unwrap();
-        messages
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClientsIPAddresses {
+    pub hashed_metadata: String,
+    pub ips: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum MessagesTypes {
+    Subscribe,
+}
+
+impl MessagesTypes {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            MessagesTypes::Subscribe => "subscribe",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServerMessage {
+    pub msg_type: MessagesTypes,
+    pub message: SubscribeTopic,
+}
+
+impl ServerMessage {
+    pub fn decode_str(str_to_decode: &str) -> Result<Self, Error> {
+        serde_json::from_str(str_to_decode)
     }
 }
