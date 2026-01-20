@@ -3,6 +3,9 @@ import os
 from configs.metadata import MetadataConfig, METADATA_PATH, StrategyType
 from controllers.networking.messages import send_msg_sender
 from models.server import SubscribeTopic
+from controllers.networking.ws_client import server_ws_client
+from threading import Thread
+from controllers.networking.p2p import P2PNode
 
 
 def clear_screen():
@@ -185,6 +188,14 @@ async def create_metadata_menu():
 
 async def main():
     """Main application loop"""
+    interactive_thread = Thread(
+        target=lambda: asyncio.run(server_ws_client()), daemon=True
+    )
+    p2p_node = P2PNode()
+    p2p_thread = Thread(target=lambda: p2p_node.start_server(), daemon=True)
+
+    interactive_thread.start()
+    p2p_thread.start()
     while True:
         clear_screen()
         print_header("CONVEY - Main Menu")
