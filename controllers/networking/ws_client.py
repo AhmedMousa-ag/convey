@@ -1,53 +1,71 @@
 import asyncio
 import websockets
+import json
+from pydantic import BaseModel
 from configs.config import SERVER_URL, WS_CONNECTION_WAIT
 from controllers.networking.messages import get_msg_sender
-from pydantic import BaseModel
-import json
 from models.server import ClientsIPAddresses
 from controllers.networking.pool import update_connection_p2p_pool
-import time
+
+
+async def read_handler(websocket):
+    """Handles receiving messages from the server."""
+    print("Started to receive messages")
+    try:
+        async for message in websocket:
+            if isinstance(message, str):
+                try:
+                    # Validate and parse the message
+                    data = json.loads(message)
+                    client_data = ClientsIPAddresses(**data)
+                    update_connection_p2p_pool(client_data)
+                except json.JSONDecodeError:
+                    print("Received invalid JSON")
+                except Exception as e:
+                    print(f"Error processing message: {e}")
+    except websockets.exceptions.ConnectionClosed:
+        print("Connection closed during read")
+        raise  # Raise to trigger the gather handling
+
+
+async def write_handler(websocket):
+    """Handles sending messages to the server."""
+    print("Started write handler")
+    while True:
+        message = await get_msg_sender()
+
+        if message:
+            print("Got a message to send")
+            if isinstance(message, BaseModel):
+                message = message.model_dump_json()
+
+            await websocket.send(message)
+
+        await asyncio.sleep(0)
 
 
 async def server_ws_client():
     print("Started ws client.")
-    while True:  # Always try to connect
+    while True:  # Reconnection Loop
         try:
             async with websockets.connect(SERVER_URL) as websocket:
                 print(f"Connected to {SERVER_URL}")
 
-                # Start a task to receive messages
-                async def receive_messages():
-                    print("Started to receive messages")
-                    try:
-                        async for message in websocket:
-                            if isinstance(message, str):
-                                # We only have this type of address, which should be enough.
-                                message: ClientsIPAddresses = ClientsIPAddresses(
-                                    **json.loads(message)
-                                )
+                # Run both Reader and Writer concurrently
+                await asyncio.gather(read_handler(websocket), write_handler(websocket))
 
-                            update_connection_p2p_pool(message)
-                    except websockets.exceptions.ConnectionClosed:
-                        print("\nConnection closed by server")
-
-                receive_task = asyncio.create_task(receive_messages())
-
-                # Send messages to the server
-                while True:
-                    print("Waiting for a message")
-                    message = await get_msg_sender()
-                    print("Got a message")
-                    if isinstance(message, BaseModel):
-                        message = message.model_dump_json()
-                    await websocket.send(message)
-
-                receive_task.cancel()
-
+        except (websockets.exceptions.ConnectionClosed, OSError) as e:
+            print(f"Connection lost or failed: {e}")
         except Exception as e:
-            print(f"Error: {e}")
-        time.sleep(WS_CONNECTION_WAIT)
+            print(f"Unexpected Error: {e}")
+
+        print(f"Reconnecting in {WS_CONNECTION_WAIT} seconds...")
+        # CRITICAL FIX: Do not use time.sleep(), use asyncio.sleep()
+        await asyncio.sleep(WS_CONNECTION_WAIT)
 
 
 if __name__ == "__main__":
-    asyncio.run(server_ws_client())
+    try:
+        asyncio.run(server_ws_client())
+    except KeyboardInterrupt:
+        print("Client stopped manually.")
