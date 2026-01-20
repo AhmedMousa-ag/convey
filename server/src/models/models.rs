@@ -20,7 +20,7 @@ pub enum MessagesTypes {
 impl MessagesTypes {
     pub fn as_str(&self) -> &'static str {
         match self {
-            MessagesTypes::Subscribe => "subscribe",
+            MessagesTypes::Subscribe => "Subscribe",
         }
     }
 }

@@ -3,7 +3,7 @@ from enum import Enum
 
 
 class MessagesTypes(Enum):
-    SUBSCRIBE = "subscribe"
+    SUBSCRIBE = "Subscribe"
 
 
 class SubscribeTopic(BaseModel):
