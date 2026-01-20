@@ -12,7 +12,8 @@ class SubscribeTopic(BaseModel):
 
 class ClientsIPAddresses(BaseModel):
     hashed_metadata: str
-    ips: list[str]
+    ip: str
+    is_adding: bool
 
 
 class ServerMessage(BaseModel):

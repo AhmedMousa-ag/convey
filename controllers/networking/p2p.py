@@ -1,16 +1,24 @@
 import socket
 import threading
 from configs.config import CLIENT_PORT, CLIENT_HOST
-from typing import List, Optional
+from models.server import ClientsIPAddresses
 
-# TODO consider the server public ip address.
 # hashed_metadata -> client IP address.
 connection_pool = {}
 
 
-def update_connection_p2p_pool(hashed_metadata: str, ip_address: List[str]):
-    connection_pool[hashed_metadata] = ip_address
-    print("Updated connection pool p2p")
+def update_connection_p2p_pool(client_ip_address: ClientsIPAddresses):
+    metadata_pool_list = connection_pool.get(client_ip_address.hashed_metadata)
+    if not metadata_pool_list:
+        metadata_pool_list = []
+    if not client_ip_address.is_adding and len(metadata_pool_list) < 1:
+        return
+    match client_ip_address.is_adding:
+        case True:
+            metadata_pool_list.append(client_ip_address.ip)
+        case False:
+            metadata_pool_list.remove(client_ip_address.ip)
+    connection_pool[client_ip_address.hashed_metadata] = metadata_pool_list
 
 
 class P2PNode:

@@ -9,7 +9,8 @@ pub struct SubscribeTopic {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClientsIPAddresses {
     pub hashed_metadata: String,
-    pub ips: Vec<String>,
+    pub ip: String,
+    pub is_adding: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

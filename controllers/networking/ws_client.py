@@ -4,8 +4,7 @@ from configs.config import SERVER_URL, WS_CONNECTION_WAIT
 from .messages import get_msg_sender
 from pydantic import BaseModel
 import json
-from typing import Dict
-from models.server import SubscribeTopic, ClientsIPAddresses
+from models.server import ClientsIPAddresses
 from controllers.networking.p2p import update_connection_p2p_pool
 import time
 
@@ -25,9 +24,8 @@ async def server_ws_client():
                                 message: ClientsIPAddresses = ClientsIPAddresses(
                                     **json.loads(message)
                                 )
-                            hashed_metadata = message.hashed_metadata
-                            print("Hashed metadata: ", hashed_metadata)
-                            update_connection_p2p_pool(hashed_metadata, message.ips)
+
+                            update_connection_p2p_pool(message)
                     except websockets.exceptions.ConnectionClosed:
                         print("\nConnection closed by server")
 
