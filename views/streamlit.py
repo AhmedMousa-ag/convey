@@ -21,7 +21,7 @@ async def streamlit_GUI():
                         )
                         await send_msg_sender(
                             ServerMessage(
-                                msg_type=MessagesTypes.SUBSCRIBE,
+                                msg_type=MessagesTypes.SUBSCRIBE.value,
                                 message=SubscribeTopic(
                                     hashed_metadata=metadata.hash_self()
                                 ),
