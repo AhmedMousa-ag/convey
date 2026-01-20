@@ -29,7 +29,7 @@ async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {
             Some(Ok(msg)) = socket.recv() => {
                 match msg {
                     Message::Text(text) => {
-                        println!("Got text msg from client: {}", ip_add);
+                        println!("Got text msg from client: {}\nMessage: {}", ip_add,text);
                         let client_msg_res = ServerMessage::decode_str(&text.to_string());
                         if let Ok(client_msg)=client_msg_res {
                             println!("Client Message: {:?}",client_msg);

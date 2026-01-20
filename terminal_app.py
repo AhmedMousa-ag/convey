@@ -2,7 +2,7 @@ import asyncio
 import os
 from configs.metadata import MetadataConfig, METADATA_PATH, StrategyType
 from controllers.networking.messages import send_msg_sender
-from models.server import SubscribeTopic
+from models.server import SubscribeTopic, ServerMessage, MessagesTypes
 from controllers.networking.ws_client import server_ws_client
 from threading import Thread
 from controllers.networking.p2p import P2PNode
@@ -66,7 +66,13 @@ async def trigger_file_menu():
 
         for file in selected_files:
             metadata = MetadataConfig.parse_file(os.path.join(METADATA_PATH, file))
-            await send_msg_sender(SubscribeTopic(hashed_metadata=metadata.hash_self()))
+
+            await send_msg_sender(
+                ServerMessage(
+                    msg_type=MessagesTypes.SUBSCRIBE.value,
+                    message=SubscribeTopic(hashed_metadata=metadata.hash_self()),
+                )
+            )
             print(f"✓ Sent {file} to the server")
 
         print("\nAll files transmitted successfully!")
