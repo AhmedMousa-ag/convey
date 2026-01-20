@@ -22,8 +22,8 @@ def update_connection_p2p_pool(client_ip_address: ClientsIPAddresses):
             metadata_pool_list.remove(client_ip_address.ip)
             ip_p2p_socket.pop(client_ip_address.ip)
     connection_pool[client_ip_address.hashed_metadata] = metadata_pool_list
-    print(connection_pool)
-    print(ip_p2p_socket)
+    print(f"Connection Pool: {connection_pool}")
+    print(f"IP Socket: {ip_p2p_socket}")
 
 
 def remove_connection_p2p_pool(hashed_metadata: str, ip: str):
