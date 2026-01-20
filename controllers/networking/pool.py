@@ -16,8 +16,9 @@ def update_connection_p2p_pool(client_ip_address: ClientsIPAddresses):
     match client_ip_address.is_adding:
         case True:
             metadata_pool_list.append(client_ip_address.ip)
-            s = p2p_node.connect_to_peer(client_ip_address.ip, CLIENT_PORT)
-            ip_p2p_socket[client_ip_address.ip, s]
+            if not ip_p2p_socket.get(client_ip_address.ip):
+                s = p2p_node.connect_to_peer(client_ip_address.ip, CLIENT_PORT)
+                ip_p2p_socket[client_ip_address.ip, s]
         case False:
             metadata_pool_list.remove(client_ip_address.ip)
             ip_p2p_socket.pop(client_ip_address.ip)

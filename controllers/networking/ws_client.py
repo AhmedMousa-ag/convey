@@ -18,6 +18,7 @@ async def server_ws_client():
 
                 # Start a task to receive messages
                 async def receive_messages():
+                    print("Started to receive messages")
                     try:
                         async for message in websocket:
                             if isinstance(message, str):
@@ -34,7 +35,9 @@ async def server_ws_client():
 
                 # Send messages to the server
                 while True:
+                    print("Waiting for a message")
                     message = await get_msg_sender()
+                    print("Got a message")
                     if isinstance(message, BaseModel):
                         message = message.model_dump_json()
                     await websocket.send(message)

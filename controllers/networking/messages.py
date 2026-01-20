@@ -17,4 +17,6 @@ async def send_msg_receiver(msg):
 
 
 async def get_msg_receiver():
+    if ws_queu_receiver.empty():
+        return None
     return await ws_queu_receiver.get()
