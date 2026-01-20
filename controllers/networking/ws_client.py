@@ -5,11 +5,12 @@ from .messages import get_msg_sender
 from pydantic import BaseModel
 import json
 from models.server import ClientsIPAddresses
-from controllers.networking.p2p import update_connection_p2p_pool
+from controllers.networking.pool import update_connection_p2p_pool
 import time
 
 
 async def server_ws_client():
+    print("Started ws client.")
     while True:  # Always try to connect
         try:
             async with websockets.connect(SERVER_URL) as websocket:

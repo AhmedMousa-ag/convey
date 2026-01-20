@@ -1,24 +1,6 @@
 import socket
 import threading
 from configs.config import CLIENT_PORT, CLIENT_HOST
-from models.server import ClientsIPAddresses
-
-# hashed_metadata -> client IP address.
-connection_pool = {}
-
-
-def update_connection_p2p_pool(client_ip_address: ClientsIPAddresses):
-    metadata_pool_list = connection_pool.get(client_ip_address.hashed_metadata)
-    if not metadata_pool_list:
-        metadata_pool_list = []
-    if not client_ip_address.is_adding and len(metadata_pool_list) < 1:
-        return
-    match client_ip_address.is_adding:
-        case True:
-            metadata_pool_list.append(client_ip_address.ip)
-        case False:
-            metadata_pool_list.remove(client_ip_address.ip)
-    connection_pool[client_ip_address.hashed_metadata] = metadata_pool_list
 
 
 class P2PNode:
@@ -47,6 +29,8 @@ class P2PNode:
             print(f"Disconnected {addr}")
 
     def start_server(self):
+        print("Started p2p server.")
+
         def run():
             while True:
                 conn, addr = self.server.accept()
@@ -56,7 +40,7 @@ class P2PNode:
 
         threading.Thread(target=run, daemon=True).start()
 
-    def connect_to_peer(self, peer_host, peer_port):
+    def connect_to_peer(self, peer_host, peer_port=CLIENT_PORT):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((peer_host, peer_port))
         print(f"Connected to peer {peer_host}:{peer_port}")
