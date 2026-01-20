@@ -32,6 +32,7 @@ async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {
                         println!("Got text msg from client: {}", ip_add);
                         let client_msg_res = ServerMessage::decode_str(&text.to_string());
                         if let Ok(client_msg)=client_msg_res {
+                            println!("Client Message: {:?}",client_msg);
                             match client_msg.msg_type {
                                 MessagesTypes::Subscribe=>{
                                     let metadata = client_msg.message.hashed_metadata;
@@ -40,6 +41,8 @@ async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {
                                     client_stored_metadata.push(metadata);
                                 },
                             }
+                        } else{
+                            println!("Error decoding server message: {:?}",client_msg_res)
                         }
                     },
                     Message::Close(_) => {
@@ -78,6 +81,7 @@ async fn inform_metadata_clients(metadata_hash: &str, curr_ip_address: &str) {
             if &ip == curr_ip_address {
                 continue;
             }
+            print!("Sending updated ips to: {}", ip);
             let potential_sender = get_sender_channel(&ip).await;
             if let Some(sender) = potential_sender {
                 if let Err(e) = sender.send(msg_to_send.clone()) {

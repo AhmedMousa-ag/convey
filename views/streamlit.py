@@ -2,7 +2,7 @@ import streamlit as st
 from configs.metadata import MetadataConfig, METADATA_PATH, StrategyType
 import os
 from controllers.networking.messages import send_msg_sender
-from models.server import SubscribeTopic
+from models.server import SubscribeTopic, ServerMessage, MessagesTypes
 
 
 async def streamlit_GUI():
@@ -20,7 +20,12 @@ async def streamlit_GUI():
                             os.path.join(METADATA_PATH, file)
                         )
                         await send_msg_sender(
-                            SubscribeTopic(hashed_metadata=metadata.hash_self())
+                            ServerMessage(
+                                msg_type=MessagesTypes.SUBSCRIBE,
+                                message=SubscribeTopic(
+                                    hashed_metadata=metadata.hash_self()
+                                ),
+                            )
                         )
                         st.write("Sent file to the server.")
         else:
