@@ -1,5 +1,5 @@
 from models.server import ClientsIPAddresses
-from .threads import p2p_node
+from controllers.networking.threads import p2p_node
 from configs.config import CLIENT_PORT
 
 # hashed_metadata -> client IP address.

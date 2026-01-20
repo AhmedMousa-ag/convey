@@ -1,7 +1,7 @@
 import asyncio
 import websockets
 from configs.config import SERVER_URL, WS_CONNECTION_WAIT
-from .messages import get_msg_sender
+from controllers.networking.messages import get_msg_sender
 from pydantic import BaseModel
 import json
 from models.server import ClientsIPAddresses

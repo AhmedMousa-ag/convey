@@ -53,3 +53,5 @@ class P2PNode:
 # Example usage: connect to another peer and send a message
 # peer = node.connect_to_peer('127.0.0.1', 5001)
 # node.send_message(peer, "Hello, peer!")
+
+p2p_node = P2PNode()

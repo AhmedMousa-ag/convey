@@ -1,10 +1,8 @@
-from .p2p import P2PNode
+from controllers.networking.p2p import p2p_node
 from threading import Thread
 import asyncio
 from controllers.networking.ws_client import server_ws_client
 
-
-p2p_node = P2PNode()
 
 p2p_thread = Thread(target=lambda: p2p_node.start_server(), daemon=True)
 
