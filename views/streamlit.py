@@ -16,13 +16,13 @@ async def streamlit_GUI():
                 start_trans = st.button("Start transmitting")
                 if start_trans:
                     for file in selected_files:
-                        print(f"File: {file}")
                         metadata = MetadataConfig.parse_file(
                             os.path.join(METADATA_PATH, file)
                         )
                         await send_msg_sender(
                             SubscribeTopic(hashed_metadata=metadata.hash_self())
                         )
+                        st.write("Sent file to the server.")
         else:
             st.write("There's no available files, please upload one or create one.")
 
@@ -105,5 +105,4 @@ async def streamlit_GUI():
             metadata.save()
             # Display success message
             st.success(f"MetadataConfig created successfully at {METADATA_PATH}")
-
     return uploaded_file

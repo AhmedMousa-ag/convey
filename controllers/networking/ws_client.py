@@ -2,9 +2,14 @@ import asyncio
 import websockets
 from configs.config import SERVER_URL
 from .messages import get_msg_sender
+from pydantic import BaseModel
+import json
+from typing import Dict
+from models.server import SubscribeTopic, ClientsIPAddresses
+from controllers.networking.client import update_connection_p2p_pool
 
 
-async def interactive_client():
+async def server_ws_client():
 
     try:
         async with websockets.connect(SERVER_URL) as websocket:
@@ -14,8 +19,14 @@ async def interactive_client():
             async def receive_messages():
                 try:
                     async for message in websocket:
-                        print(f"\nReceived: {message}")
-                        print("> ", end="", flush=True)
+                        if isinstance(message, str):
+                            # We only have this type of address, which should be enough.
+                            message: ClientsIPAddresses = ClientsIPAddresses(
+                                **json.loads(message)
+                            )
+                        hashed_metadata = message.hashed_metadata
+                        print("Hashed metadata: ", hashed_metadata)
+                        update_connection_p2p_pool(hashed_metadata, message.ips)
                 except websockets.exceptions.ConnectionClosed:
                     print("\nConnection closed by server")
 
@@ -24,7 +35,8 @@ async def interactive_client():
             # Send messages to the server
             while True:
                 message = await get_msg_sender()
-
+                if isinstance(message, BaseModel):
+                    message = message.model_dump_json()
                 await websocket.send(message)
 
             receive_task.cancel()
@@ -34,4 +46,4 @@ async def interactive_client():
 
 
 if __name__ == "__main__":
-    asyncio.run(interactive_client())
+    asyncio.run(server_ws_client())

@@ -1,11 +1,22 @@
 import socket
 import threading
+from configs.config import CLIENT_PORT, CLIENT_HOST
+from typing import List, Optional
+
+# TODO consider the server public ip address.
+# hashed_metadata -> client IP address.
+connection_pool = {}
+
+
+def update_connection_p2p_pool(hashed_metadata: str, ip_address: List[str]):
+    connection_pool[hashed_metadata] = ip_address
+    print("Updated connection pool p2p")
 
 
 class P2PNode:
-    def __init__(self, host="0.0.0.0", port=5000):
-        self.host = host
-        self.port = port
+    def __init__(self):
+        self.host = CLIENT_HOST
+        self.port = CLIENT_PORT
         self.peers = set()
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server.bind((self.host, self.port))
@@ -46,10 +57,6 @@ class P2PNode:
     def send_message(self, peer_socket, message):
         peer_socket.sendall(message.encode())
 
-
-if __name__ == "__main__":
-    node = P2PNode()
-    node.start_server()
 
 # Example usage: connect to another peer and send a message
 # peer = node.connect_to_peer('127.0.0.1', 5001)

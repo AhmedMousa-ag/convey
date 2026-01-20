@@ -29,8 +29,7 @@ async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {
             Some(Ok(msg)) = socket.recv() => {
                 match msg {
                     Message::Text(text) => {
-                        println!("Client {} sent: {}", addr, text);
-                        println!("Got text msg");
+                        println!("Got text msg from client: {}", ip_add);
                         let client_msg_res = ServerMessage::decode_str(&text.to_string());
                         if let Ok(client_msg)=client_msg_res {
                             match client_msg.msg_type {
@@ -42,10 +41,6 @@ async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {
                                 },
                             }
                         }
-                        if let Err(e) = socket.send(Message::Text(text)).await {
-                            dbg!("{:?}",e);
-                        }
-
                     },
                     Message::Close(_) => {
                         println!("Client {} disconnected", addr);
@@ -55,6 +50,7 @@ async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {
                 }
             }
             Some(msg) = internal_reciver.recv() => {
+                println!("Will send a message: {:?}",msg);
                 if let Err(e) = socket.send(Message::Text(msg.into())).await{
                     dbg!("{:?}", e);
                 }
