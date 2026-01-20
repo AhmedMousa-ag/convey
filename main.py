@@ -1,7 +1,7 @@
 from controllers.networking.ws_client import server_ws_client
 import asyncio
 from threading import Thread
-from controllers.networking.client import P2PNode
+from controllers.networking.p2p import P2PNode
 from views.streamlit import streamlit_GUI
 import streamlit as st
 

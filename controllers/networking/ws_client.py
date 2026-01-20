@@ -6,7 +6,7 @@ from pydantic import BaseModel
 import json
 from typing import Dict
 from models.server import SubscribeTopic, ClientsIPAddresses
-from controllers.networking.client import update_connection_p2p_pool
+from controllers.networking.p2p import update_connection_p2p_pool
 
 
 async def server_ws_client():
