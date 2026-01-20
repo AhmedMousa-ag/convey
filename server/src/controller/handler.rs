@@ -32,9 +32,10 @@ async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {
                         println!("Got text msg from client: {}\nMessage: {}", ip_add,text);
                         let client_msg_res = ServerMessage::decode_str(&text.to_string());
                         if let Ok(client_msg)=client_msg_res {
-                            println!("Client Message: {:?}",client_msg);
+                            println!("Got a message type: {:?}",client_msg.msg_type);
                             match client_msg.msg_type {
                                 MessagesTypes::Subscribe=>{
+                                    println!("Got a subscribe request");
                                     let metadata = client_msg.message.hashed_metadata;
                                     add_meta_ip(&metadata,&ip_add).await;
                                     inform_metadata_clients(&metadata,&ip_add).await;
@@ -72,6 +73,7 @@ async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {
 ///Informs all clients of each others.
 async fn inform_metadata_clients(metadata_hash: &str, curr_ip_address: &str) {
     let all_ips = get_meta_ip_key(metadata_hash).await;
+    println!("All available IPs: {:?}", all_ips);
     let msg_to_send_res = serde_json::to_string(&ClientsIPAddresses {
         hashed_metadata: metadata_hash.to_string(),
         ips: all_ips.clone(),
