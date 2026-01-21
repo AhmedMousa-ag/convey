@@ -6,6 +6,8 @@ from configs.config import CONVERY_FILE_EXT
 import os
 import hashlib
 
+metadata_hash_pool = {}
+
 
 class MetadataConfig(BaseModel):
     avg_count: int
@@ -34,10 +36,20 @@ class MetadataConfig(BaseModel):
             json.dump(self.model_dump(), f, indent=2)
 
     def hash_self(self) -> str:
+        return hashlib.sha256(self.get_before_hash().encode()).hexdigest()
+
+    def get_before_hash(self) -> str:
         mg_strategy = (
             self.merge_strategy
             if isinstance(self.merge_strategy, str)
             else self.merge_strategy.value
         )
-        string_to_hast = mg_strategy + self.model_name + str(self.t)
-        return hashlib.sha256(string_to_hast.encode()).hexdigest()
+        return mg_strategy + self.model_name + str(self.t)
+
+
+def add_metadata_pool(hashed_value: str, raw_value: str):
+    metadata_hash_pool[hashed_value] = raw_value
+
+
+def get_raw_hashed_raw_value(hashed_value: str) -> str:
+    return metadata_hash_pool[hashed_value]

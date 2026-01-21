@@ -2,7 +2,9 @@ import socket
 import threading
 import os
 from configs.config import CLIENT_PORT, CLIENT_HOST
-from configs.paths import DATASETS_TEST_DIR, MODELS_DIR
+from configs.paths import DATASETS_TEST_DIR, MODELS_DIR, ZIPPED_DIRE
+import zipfile
+import shutil
 
 
 class P2PNode:
@@ -74,17 +76,19 @@ class P2PNode:
         # Create directory if it doesn't exist
         os.makedirs(save_dir, exist_ok=True)
         filepath = os.path.join(save_dir, filename)
-
+        zip_path = os.path.join(ZIPPED_DIRE, filename)
         # Receive and write file data
         received = 0
-        with open(filepath, "wb") as f:
+        with open(zip_path, "wb") as f:
             while received < filesize:
                 chunk = conn.recv(min(4096, filesize - received))
                 if not chunk:
                     break
                 f.write(chunk)
                 received += len(chunk)
-
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
+            zip_ref.extractall(save_dir)
+            print(f"Files extracted to {save_dir}")
         print(
             f"{file_type} '{filename}' received successfully ({received} bytes) at {filepath}"
         )
@@ -121,14 +125,17 @@ class P2PNode:
         if not os.path.exists(filepath):
             print(f"Error: File '{filepath}' not found")
             return False
-        if ".zip" not in filepath:
-            raise ValueError("Only zip files are acceptable to be transferred.")
+        filename = os.path.basename(filepath)
+        if os.path.isdir(filepath) and not filepath.endswith(".zip"):
+            zip_name = f"{filename}.zip"
+            filename = zip_name
+            zip_path = os.path.join(ZIPPED_DIRE, zip_name)
+            self.__zip_folder(filepath, zip_path)
 
         # Ensure file_type is valid (Optional validation depending on your strictness)
         if file_type not in ["MODEL", "DATA"]:
             print(f"Warning: Unknown file type '{file_type}'. Sending anyway.")
 
-        filename = os.path.basename(filepath)
         filesize = os.path.getsize(filepath)
 
         print(f"Sending {file_type} '{filename}' ({filesize} bytes)")
@@ -165,6 +172,20 @@ class P2PNode:
         else:
             print("File transfer acknowledgment not received")
             return False
+
+    def __zip_folder(self, filepath, zip_path):
+        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+            # 2. Use os.walk to catch all files in subdirectories
+            for root, _, files in os.walk(filepath):
+                for file in files:
+                    # Create the full path to the file on disk
+                    full_path = os.path.join(root, file)
+
+                    # 3. Create the internal path (arcname)
+                    # This ensures the zip structure matches the folder structure
+                    rel_path = os.relpath(full_path, start=filepath)
+
+                    zipf.write(full_path, arcname=rel_path)
 
 
 p2p_node = P2PNode()

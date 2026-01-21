@@ -1,6 +1,11 @@
 import asyncio
 import os
-from configs.metadata import MetadataConfig, METADATA_PATH, StrategyType
+from configs.metadata import (
+    MetadataConfig,
+    StrategyType,
+    add_metadata_pool,
+)
+from configs.paths import METADATA_PATH
 from controllers.networking.messages import send_msg_sender
 from models.server import SubscribeTopic, ServerMessage, MessagesTypes
 from controllers.networking.threads import start_threads
@@ -64,11 +69,12 @@ async def trigger_file_menu():
 
         for file in selected_files:
             metadata = MetadataConfig.parse_file(os.path.join(METADATA_PATH, file))
-
+            hashed_metadata = metadata.hash_self()
+            add_metadata_pool(hashed_metadata, metadata.get_before_hash())
             await send_msg_sender(
                 ServerMessage(
                     msg_type=MessagesTypes.SUBSCRIBE.value,
-                    message=SubscribeTopic(hashed_metadata=metadata.hash_self()),
+                    message=SubscribeTopic(hashed_metadata=hashed_metadata),
                 )
             )
             print(f"✓ Sent {file} to the server")
