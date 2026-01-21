@@ -4,7 +4,9 @@ from configs.config import CLIENT_PORT
 
 # hashed_metadata -> client IP address.
 connection_pool = {}
-ip_p2p_socket = {}
+
+# hashed metadata -> actual socket connection.
+p2p_socket_peer_conn = {}
 
 
 def update_connection_p2p_pool(client_ip_address: ClientsIPAddresses):
@@ -16,15 +18,15 @@ def update_connection_p2p_pool(client_ip_address: ClientsIPAddresses):
     match client_ip_address.is_adding:
         case True:
             metadata_pool_list.append(client_ip_address.ip)
-            if not ip_p2p_socket.get(client_ip_address.ip):
-                s = p2p_node.connect_to_peer(client_ip_address.ip, CLIENT_PORT)
-                ip_p2p_socket[client_ip_address.ip, s]
+            if not p2p_socket_peer_conn.get(client_ip_address.ip):
+                peer_conn = p2p_node.connect_to_peer(client_ip_address.ip, CLIENT_PORT)
+                p2p_socket_peer_conn[client_ip_address.ip, peer_conn]
         case False:
             metadata_pool_list.remove(client_ip_address.ip)
-            ip_p2p_socket.pop(client_ip_address.ip)
+            p2p_socket_peer_conn.pop(client_ip_address.ip)
     connection_pool[client_ip_address.hashed_metadata] = metadata_pool_list
     print(f"Connection Pool: {connection_pool}")
-    print(f"IP Socket: {ip_p2p_socket}")
+    print(f"IP Socket: {p2p_socket_peer_conn}")
 
 
 def remove_connection_p2p_pool(hashed_metadata: str, ip: str):
