@@ -4,7 +4,8 @@ import os
 from configs.config import CLIENT_PORT, CLIENT_HOST
 from configs.paths import DATASETS_TEST_DIR, MODELS_DIR, ZIPPED_DIRE
 import zipfile
-import shutil
+from controllers.networking.serializer import MessageSerializer
+from controllers.networking.transmitter import TransmitterManager
 
 
 class P2PNode:
@@ -15,6 +16,7 @@ class P2PNode:
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server.bind((self.host, self.port))
         self.server.listen(5)
+        self.serializer = MessageSerializer()
         print(f"P2P node listening on {self.host}:{self.port}")
 
     def handle_peer(self, conn, addr):
@@ -38,7 +40,14 @@ class P2PNode:
                     if not data:
                         break
                     print(f"Received from {addr}: {data.decode()}")
-                    conn.sendall(data)  # Echo back
+                    hashed_metadata, msg_type, message = self.serializer.receive_msg(
+                        data
+                    )
+                    transmitter = TransmitterManager(hashed_metadata, peer_address=addr)
+                    reply_data = transmitter.reply(msg_type=msg_type, msg=message)
+                    if reply_data is None:
+                        continue
+                    conn.sendall(reply_data)
                 else:
                     # Unknown header type
                     print(f"Unknown message type received: {msg_type}")
@@ -108,7 +117,7 @@ class P2PNode:
 
         threading.Thread(target=run, daemon=True).start()
 
-    def connect_to_peer(self, peer_host, peer_port=CLIENT_PORT):
+    def connect_to_peer(self, peer_host, peer_port=CLIENT_PORT) -> socket.socket:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((peer_host, peer_port))
         print(f"Connected to peer {peer_host}:{peer_port}")
@@ -181,9 +190,8 @@ class P2PNode:
                     # Create the full path to the file on disk
                     full_path = os.path.join(root, file)
 
-                    # 3. Create the internal path (arcname)
                     # This ensures the zip structure matches the folder structure
-                    rel_path = os.relpath(full_path, start=filepath)
+                    rel_path = os.path.relpath(full_path, start=filepath)
 
                     zipf.write(full_path, arcname=rel_path)
 

@@ -1,5 +1,9 @@
 from configs.metadata import MetadataConfig
-from controllers.networking.p2p import p2p_node
+from typing import Dict
+from models.clients import P2PMessagesTypes
+from controllers.networking.req_rep import Requester, Replier
+from models.clients import ResponseIsLatestModel
+from controllers.verifier.update_verifier import DateVerifier
 
 # TODO
 # Upon socket connection, ask to see if this client is synced with the recent version or not.
@@ -8,23 +12,37 @@ from controllers.networking.p2p import p2p_node
 
 
 class TransmitterManager:
-    def __init__(self, metadata: MetadataConfig) -> None:
-        pass
+    def __init__(self, hashed_metadata: str, peer_address: str):
+        self.metadata: MetadataConfig = MetadataConfig.load_from_hashed_val(
+            hashed_metadata
+        )
+        self.requester = Requester(self.metadata)
+        self.replier = Replier(self.metadata)
+        self.peer_address = peer_address
 
-    def is_latest(self) -> bool:
-        is_latest = False
-        return is_latest
-
-    def reply_is_latest(self) -> bool:
-        is_latest = False
-        return is_latest
-
-    def sync_latest_version(self) -> bool:
-        """Ask one client only."""
-        success = False
-        # Verify the new version.
-        return success
-
-    def update_others_of_latest_version(self) -> bool:
-        success = False
-        return success
+    def reply(self, msg_type: P2PMessagesTypes, msg: Dict) -> str | None:
+        match msg_type:
+            case P2PMessagesTypes.IsLatest:
+                return self.replier.reply_is_latest(msg)
+            case P2PMessagesTypes.ResIsLatest:
+                response_model = ResponseIsLatestModel(**msg)
+                (
+                    need_verifier,
+                    latest_peers_addr,
+                ) = DateVerifier().verify_latest_model(
+                    hashed_metadata=self.metadata.hash_self(),
+                    latest_update=response_model.last_update,
+                    peer_address=self.peer_address,
+                )
+                if need_verifier:
+                    self.requester.ask_sync_model(latest_peers_addr)
+                return None
+            case P2PMessagesTypes.SYNC:
+                # TODO logic
+                return ""
+            case P2PMessagesTypes.UPDATE:
+                # TODO logic
+                return ""
+            case _:
+                print(f"Message type {msg_type.value} is not supported.")
+                return None

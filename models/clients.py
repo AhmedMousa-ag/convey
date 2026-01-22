@@ -1,0 +1,38 @@
+from pydantic import BaseModel
+from enum import Enum
+from datetime import datetime
+
+
+class IsLatestModel(BaseModel):
+    current_date: datetime
+
+
+class ResponseIsLatestModel(BaseModel):
+    is_latest: bool
+    last_update: datetime
+
+
+class SyncLatestModel(BaseModel):
+    pass
+
+
+class UpdateOthersLatestModel(BaseModel):
+    pass
+
+
+class P2PMessagesTypes(Enum):
+    IsLatest = "is_latest"
+    ResIsLatest = "res_is_latest"
+    SYNC = "sync_models"
+    UPDATE = "update_model"
+
+
+class P2PMessage(BaseModel):
+    msg_type: P2PMessagesTypes
+    hashed_metadata: str
+    message: (
+        IsLatestModel
+        | ResponseIsLatestModel
+        | SyncLatestModel
+        | UpdateOthersLatestModel
+    )
