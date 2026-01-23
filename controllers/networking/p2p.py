@@ -124,6 +124,7 @@ class P2PNode:
         return s
 
     def send_message(self, peer_socket, message):
+        print(f"Will send message: {message}")
         peer_socket.sendall(b"TEXT".ljust(10))
         peer_socket.sendall(message.encode())
 
@@ -134,6 +135,7 @@ class P2PNode:
         if not os.path.exists(filepath):
             print(f"Error: File '{filepath}' not found")
             return False
+        # print(f"Will send file: {filepath}")
         filename = os.path.basename(filepath)
         if os.path.isdir(filepath) and not filepath.endswith(".zip"):
             zip_name = f"{filename}.zip"
