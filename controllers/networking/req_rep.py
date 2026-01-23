@@ -48,11 +48,16 @@ class BaseReqRepl:
 
 
 class Requester(BaseReqRepl):
-    def is_latest(self, hashed_metadata: str, current_date: datetime) -> bool:
+    def ask_is_latest(self, hashed_metadata: str, current_date: datetime):
         return self.__send_msg_rdnm_conn(
             self.msg_serializer.get_is_latest(
                 hashed_metadata, current_date=current_date
             )
+        )
+
+    def sync_dataset(self, hashed_metadata: str) -> bool:
+        return self.__send_msg_rdnm_conn(
+            self.msg_serializer.sync_dataset(hashed_metadata).model_dump_json()
         )
 
     def ask_sync_model(self, latest_peers_addr: list[str]):
@@ -61,7 +66,7 @@ class Requester(BaseReqRepl):
         # send a message with SyncModel
         self.__send_msg_rdnm_conn(
             msg=P2PMessage(
-                msg_type=P2PMessagesTypes.SYNC,
+                msg_type=P2PMessagesTypes.SYNCModel,
                 message=SyncLatestModel(),
                 hashed_metadata=hashed_metadata,
             ).model_dump_json(),
@@ -98,4 +103,9 @@ class Replier(BaseReqRepl):
     def reply_sync_model(self, ip: str) -> bool:
         return self.__send_file(
             ip=ip, file_path=self.metadata.weights_path, file_type="MODEL"
+        )
+
+    def reply_sync_dataset(self, ip: str) -> bool:
+        return self.__send_file(
+            ip=ip, file_path=self.metadata.dataset_path, file_type="DATA"
         )

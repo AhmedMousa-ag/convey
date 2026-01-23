@@ -5,6 +5,7 @@ from models.clients import (
     ResponseIsLatestModel,
     SyncLatestModel,
     UpdateOthersLatestModel,
+    SyncDataset,
 )
 
 import json
@@ -27,11 +28,18 @@ class MessageSerializer:
     def response_is_latest(self, recieved_message: str) -> ResponseIsLatestModel:
         return ResponseIsLatestModel(**json.loads(recieved_message))
 
-    def sync_latest_model(self, hashed_metadata: str):
+    def sync_latest_model(self, hashed_metadata: str) -> P2PMessage:
         return P2PMessage(
-            msg_type=P2PMessagesTypes.SYNC,
+            msg_type=P2PMessagesTypes.SYNCModel,
             hashed_metadata=hashed_metadata,
             message=SyncLatestModel(),
+        )
+
+    def sync_dataset(self, hashed_metadata: str) -> P2PMessage:
+        return P2PMessage(
+            msg_type=P2PMessagesTypes.SYNCDataset,
+            message=SyncDataset(),
+            hashed_metadata=hashed_metadata,
         )
 
     def update_other_models(self, hashed_metadata: str):

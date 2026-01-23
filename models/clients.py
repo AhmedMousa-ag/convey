@@ -16,6 +16,10 @@ class SyncLatestModel(BaseModel):
     pass
 
 
+class SyncDataset(BaseModel):
+    pass
+
+
 class UpdateOthersLatestModel(BaseModel):
     pass
 
@@ -23,7 +27,8 @@ class UpdateOthersLatestModel(BaseModel):
 class P2PMessagesTypes(Enum):
     IsLatest = "is_latest"
     ResIsLatest = "res_is_latest"
-    SYNC = "sync_models"
+    SYNCModel = "sync_models"
+    SYNCDataset = "sync_dataset"
     UPDATE = "update_model"
 
 
@@ -35,4 +40,5 @@ class P2PMessage(BaseModel):
         | ResponseIsLatestModel
         | SyncLatestModel
         | UpdateOthersLatestModel
+        | SyncDataset
     )

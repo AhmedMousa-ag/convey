@@ -34,15 +34,14 @@ class TransmitterManager:
                     latest_update=response_model.last_update,
                     peer_address=self.peer_address,
                 )
-                if need_verifier:
+                if need_verifier and latest_peers_addr is not None:
                     self.requester.ask_sync_model(latest_peers_addr)
-                return None
-            case P2PMessagesTypes.SYNC:
-                # TODO logic
-                return ""
-            case P2PMessagesTypes.UPDATE:
-                # TODO logic
-                return ""
+            case P2PMessagesTypes.SYNCModel:
+                self.replier.reply_sync_model(self.peer_address)
+            case P2PMessagesTypes.SYNCDataset:
+                self.replier.reply_sync_dataset(self.peer_address)
+            # case P2PMessagesTypes.UPDATE:
+            #     self.requester.update_new_weights()
             case _:
                 print(f"Message type {msg_type.value} is not supported.")
-                return None
+        return None

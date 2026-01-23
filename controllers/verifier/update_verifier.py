@@ -28,7 +28,7 @@ class DateVerifier:
         num_conn = len(conn_pool)
         num_half_conn = int(num_conn / 2) or 1  # If it's 0 return 1
         num_list_if_date = len(list_of_dates)
-        num_latest = 0
+        num_latest = 0  # TODO you might need to start at one since you're assuming the current device holds the latest model weight.
         for update in list_of_dates:
             if latest_update == update:
                 num_latest += 1

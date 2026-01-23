@@ -5,10 +5,16 @@ from configs.metadata import (
     StrategyType,
     add_metadata_pool,
 )
-from configs.paths import METADATA_PATH
+from configs.paths import METADATA_PATH, MODELS_DIR, DATASETS_TEST_DIR
 from controllers.networking.messages import send_msg_sender
 from models.server import SubscribeTopic, ServerMessage, MessagesTypes
 from controllers.networking.threads import start_threads
+from datetime import datetime
+from configs.config import DATEIME_FORMAT
+from controllers.networking.transmitter import TransmitterManager
+from controllers.networking.req_rep import Requester
+import shutil
+from pathlib import Path
 
 
 def clear_screen():
@@ -66,9 +72,38 @@ async def trigger_file_menu():
             return
 
         print(f"\nTransmitting {len(selected_files)} file(s)...")
-
         for file in selected_files:
             metadata = MetadataConfig.parse_file(os.path.join(METADATA_PATH, file))
+
+            weights_path = Path(metadata.weights_path)
+            models_dir = Path(MODELS_DIR)
+
+            if weights_path.exists() and weights_path.parent != models_dir:
+                models_dir.mkdir(parents=True, exist_ok=True)
+                dest_weights = models_dir / weights_path.name
+                print(f"Moving {weights_path} to {dest_weights}")
+                shutil.move(str(weights_path), str(dest_weights))
+                metadata.weights_path = str(dest_weights)
+            elif weights_path.parent == models_dir:
+                print(f"Weights already in {models_dir}")
+            else:
+                print(f"Warning: {weights_path} does not exist")
+
+            # Check and move dataset to DATASETS_TEST_DIR
+            dataset_path = Path(metadata.dataset_path)
+            datasets_dir = Path(DATASETS_TEST_DIR)
+
+            if dataset_path.exists() and dataset_path.parent != datasets_dir:
+                datasets_dir.mkdir(parents=True, exist_ok=True)
+                dest_dataset = datasets_dir / dataset_path.name
+                print(f"Moving {dataset_path} to {dest_dataset}")
+                shutil.move(str(dataset_path), str(dest_dataset))
+                metadata.dataset_path = str(dest_dataset)
+            elif dataset_path.parent == datasets_dir:
+                print(f"Dataset already in {datasets_dir}")
+            else:
+                print(f"Warning: {dataset_path} does not exist")
+
             hashed_metadata = metadata.hash_self()
             add_metadata_pool(hashed_metadata, metadata.get_before_hash())
             await send_msg_sender(
@@ -77,7 +112,19 @@ async def trigger_file_menu():
                     message=SubscribeTopic(hashed_metadata=hashed_metadata),
                 )
             )
-            print(f"✓ Sent {file} to the server")
+            print(f"Sent {file} to the server")
+            requester = Requester(metadata)
+            latest_update = (
+                datetime.min
+                if metadata.latest_updated is None
+                else datetime.strptime(metadata.latest_updated, DATEIME_FORMAT)
+            )
+            requester.ask_is_latest(
+                hashed_metadata,
+                latest_update,
+            )
+            if not os.path.exists(metadata.dataset_path):
+                requester.sync_dataset(hashed_metadata)
 
         print("\nAll files transmitted successfully!")
         input("\nPress Enter to continue...")
@@ -180,6 +227,7 @@ async def create_metadata_menu():
                 model_name=model_name,
                 weights_path=weights_path,
                 t=t,
+                latest_updated=datetime.now().strftime(DATEIME_FORMAT),
             )
             metadata.save()
             print(f"\n✓ MetadataConfig created successfully at {METADATA_PATH}")
@@ -194,6 +242,10 @@ async def create_metadata_menu():
     except Exception as e:
         print(f"\nError creating metadata: {e}")
         input("\nPress Enter to continue...")
+
+
+async def update_others_weights_menu():
+    pass
 
 
 async def main():
@@ -217,6 +269,8 @@ async def main():
         elif choice == "3":
             await create_metadata_menu()
         elif choice == "4":
+            await update_others_weights_menu()
+        elif choice == "5":
             print("\nGoodbye!")
             break
         else:
