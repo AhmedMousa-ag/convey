@@ -1,5 +1,6 @@
 from configs.metadata import MetadataConfig
-from controllers.networking.p2p import p2p_node
+
+# from controllers.networking.p2p import p2p_node
 from controllers.networking.pool import get_connection_p2p_pool, get_socket_connection
 import random
 from socket import socket
@@ -18,9 +19,10 @@ from models.clients import (
 
 
 class BaseReqRepl:
-    def __init__(self, metadata: MetadataConfig) -> None:
+    def __init__(self, metadata: MetadataConfig, p2p_node) -> None:
         self.msg_serializer = MessageSerializer()
         self.metadata = metadata
+        self.p2p_node = p2p_node
 
     def __random_p2p_connection(
         self, list_of_address: List[str] | None = None
@@ -37,17 +39,20 @@ class BaseReqRepl:
         conn = self.__random_p2p_connection(list_of_address)
         if conn is None:
             return False
-        p2p_node.send_message(conn, msg)
+        self.p2p_node.send_message(conn, msg)
         return True
 
     def __send_file(self, ip: str, file_path: str, file_type: str = "MODEL") -> bool:
         conn = get_socket_connection(ip=ip)
         if conn is None:
             return False
-        return p2p_node.send_file(conn, filepath=file_path, file_type=file_type)
+        return self.p2p_node.send_file(conn, filepath=file_path, file_type=file_type)
 
 
 class Requester(BaseReqRepl):
+    def __init__(self, metadata: MetadataConfig, p2p_node) -> None:
+        super().__init__(metadata, p2p_node)
+
     def ask_is_latest(self, hashed_metadata: str, current_date: datetime):
         return self.__send_msg_rdnm_conn(
             self.msg_serializer.get_is_latest(
@@ -83,6 +88,9 @@ class Requester(BaseReqRepl):
 
 
 class Replier(BaseReqRepl):
+    def __init__(self, metadata: MetadataConfig, p2p_node) -> None:
+        super().__init__(metadata, p2p_node)
+
     def reply_is_latest(self, msg: Dict) -> str:
         # res_model = self.msg_serializer.response_is_latest(msg)
         is_latest_model = IsLatestModel(**msg)

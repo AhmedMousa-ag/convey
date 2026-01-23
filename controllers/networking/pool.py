@@ -1,6 +1,4 @@
 from models.server import ClientsIPAddresses
-from controllers.networking.threads import p2p_node
-from configs.config import CLIENT_PORT
 from socket import socket
 from typing import List, Dict
 from datetime import datetime
@@ -51,7 +49,7 @@ def get_latest_updates(hashed_metadata: str) -> List[datetime]:
     return latest_update["latest_updates"]
 
 
-def update_connection_p2p_pool(client_ip_address: ClientsIPAddresses):
+def update_connection_p2p_pool(client_ip_address: ClientsIPAddresses, peer_conn):
     metadata_pool_list = connection_pool.get(client_ip_address.hashed_metadata)
     if not metadata_pool_list:
         metadata_pool_list = []
@@ -62,7 +60,7 @@ def update_connection_p2p_pool(client_ip_address: ClientsIPAddresses):
         case True:
             metadata_pool_list.append(ip)
             if not p2p_socket_peer_conn.get(ip):
-                peer_conn = p2p_node.connect_to_peer(ip, CLIENT_PORT)
+
                 p2p_socket_peer_conn[ip] = peer_conn
         case False:
             if ip in metadata_pool_list:

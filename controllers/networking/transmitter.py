@@ -12,12 +12,12 @@ from controllers.verifier.update_verifier import DateVerifier
 
 
 class TransmitterManager:
-    def __init__(self, hashed_metadata: str, peer_address: str):
+    def __init__(self, hashed_metadata: str, peer_address: str, p2p_node):
         self.metadata: MetadataConfig = MetadataConfig.load_from_hashed_val(
             hashed_metadata
         )
-        self.requester = Requester(self.metadata)
-        self.replier = Replier(self.metadata)
+        self.requester = Requester(self.metadata, p2p_node)
+        self.replier = Replier(self.metadata, p2p_node)
         self.peer_address = peer_address
 
     def reply(self, msg_type: P2PMessagesTypes, msg: Dict) -> str | None:

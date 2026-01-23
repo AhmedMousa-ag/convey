@@ -2,10 +2,11 @@ import asyncio
 import websockets
 import json
 from pydantic import BaseModel
-from configs.config import SERVER_URL, WS_CONNECTION_WAIT
+from configs.config import SERVER_URL, WS_CONNECTION_WAIT, CLIENT_PORT
 from controllers.networking.messages import get_msg_sender
 from models.server import ClientsIPAddresses
 from controllers.networking.pool import update_connection_p2p_pool
+from controllers.networking.p2p import p2p_node
 
 
 async def read_handler(websocket):
@@ -18,7 +19,8 @@ async def read_handler(websocket):
                     # Validate and parse the message
                     data = json.loads(message)
                     client_data = ClientsIPAddresses(**data)
-                    update_connection_p2p_pool(client_data)
+                    conn = p2p_node.connect_to_peer(client_data.ip, CLIENT_PORT)
+                    update_connection_p2p_pool(client_data, conn)
                 except json.JSONDecodeError:
                     print("Received invalid JSON")
                 except Exception as e:

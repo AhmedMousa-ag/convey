@@ -11,10 +11,10 @@ from models.server import SubscribeTopic, ServerMessage, MessagesTypes
 from controllers.networking.threads import start_threads
 from datetime import datetime
 from configs.config import DATEIME_FORMAT
-from controllers.networking.transmitter import TransmitterManager
 from controllers.networking.req_rep import Requester
 import shutil
 from pathlib import Path
+from controllers.networking.p2p import p2p_node
 
 
 def clear_screen():
@@ -33,7 +33,7 @@ def print_menu(options):
     """Print a numbered menu"""
     for i, option in enumerate(options, 1):
         print(f"{i}. {option}")
-    print(f"{len(options) + 1}. Back to main menu")
+    # print(f"{len(options) + 1}. Back to main menu")
 
 
 async def trigger_file_menu():
@@ -113,7 +113,7 @@ async def trigger_file_menu():
                 )
             )
             print(f"Sent {file} to the server")
-            requester = Requester(metadata)
+            requester = Requester(metadata, p2p_node)
             latest_update = (
                 datetime.min
                 if metadata.latest_updated is None
@@ -228,6 +228,8 @@ async def create_metadata_menu():
                 weights_path=weights_path,
                 t=t,
                 latest_updated=datetime.now().strftime(DATEIME_FORMAT),
+                model_obj_path="",
+                hashed_scores="",
             )
             metadata.save()
             print(f"\n✓ MetadataConfig created successfully at {METADATA_PATH}")
@@ -255,10 +257,16 @@ async def main():
         clear_screen()
         print_header("CONVEY - Main Menu")
 
-        options = ["Trigger file", "Upload file", "Create metadata", "Exit"]
+        options = [
+            "Trigger file",
+            "Upload file",
+            "Create metadata",
+            "Update network weights",
+            "Exit",
+        ]
 
-        print_menu(options[:-1])
-        print(f"{len(options)}. Exit")
+        print_menu(options)
+        # print(f"{len(options)}. Exit")
 
         choice = input("\nEnter your choice: ").strip()
 

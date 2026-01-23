@@ -43,7 +43,9 @@ class P2PNode:
                     hashed_metadata, msg_type, message = self.serializer.receive_msg(
                         data
                     )
-                    transmitter = TransmitterManager(hashed_metadata, peer_address=addr)
+                    transmitter = TransmitterManager(
+                        hashed_metadata, peer_address=addr, p2p_node=self
+                    )
                     reply_data = transmitter.reply(msg_type=msg_type, msg=message)
                     if reply_data is None:
                         continue
