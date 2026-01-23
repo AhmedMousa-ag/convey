@@ -17,10 +17,12 @@ class MetadataConfig(BaseModel):
     dataset_path: str
     model_name: str
     weights_path: str
+    model_obj_path: str
     t: float
     # A list of hashed timestamps of each updated weights
     timestamps: List[str] = []
     latest_updated: str | None
+    hashed_scores: str
 
     @staticmethod
     def parse_file(file_path: str) -> "MetadataConfig":
@@ -56,6 +58,15 @@ class MetadataConfig(BaseModel):
 
     def hash_self(self) -> str:
         return hashlib.sha256(self.get_before_hash().encode()).hexdigest()
+
+    def hash_accumulated_score(self, new_score: float) -> str:
+        return hashlib.sha256(
+            (self.hashed_scores + str(new_score)).encode()
+        ).hexdigest()
+
+    def assign_new_hashed_scores(self, new_hash: str):
+        self.hashed_scores = new_hash
+        self.save()
 
     def get_before_hash(self) -> str:
         mg_strategy = (
