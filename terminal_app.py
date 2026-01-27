@@ -150,6 +150,17 @@ async def upload_file_menu():
         with open(file_path, "r") as f:
             metadata_file = MetadataConfig.parse_string(f.read())
 
+        if METADATA_PATH not in metadata_file.weights_path:
+            weights_path = Path(metadata_file.weights_path)
+            metadata_file.weights_path = os.path.join(METADATA_PATH, weights_path.name)
+            os.makedirs(metadata_file.weights_path, exist_ok=True)
+        if METADATA_PATH not in metadata_file.dataset_path:
+            data_path = Path(metadata_file.dataset_path)
+            metadata_file.dataset_path = os.path.join(
+                METADATA_PATH,
+                data_path.parent.name if not data_path.is_dir() else data_path.name,
+            )
+            os.makedirs(metadata_file.dataset_path, exist_ok=True)
         print("\nMetadata content:")
         print(metadata_file.model_dump_json(indent=2))
 
@@ -192,12 +203,14 @@ async def create_metadata_menu():
 
         dataset_path = input(
             "\nDataset Path (default=./data): "
-        ).strip() or os.path.join(os.path.curdir, "data")
+        ).strip() or os.path.abspath(os.path.join(os.path.curdir, "data"))
         model_name = input("Model Name (default=my_model): ").strip() or "my_model"
         weights_path = input(
             "Weights Path (default=./saved_models/model_1.pth): "
-        ).strip() or os.path.join(os.path.curdir, "saved_models", "model_1.pth")
-
+        ).strip() or os.path.abspath(
+            os.path.join(os.path.curdir, "saved_models", "model_1.pth")
+        )
+        print(weights_path)
         t_input = input("T - Threshold/Temperature (0.0-1.0, default=0.95): ").strip()
         t = float(t_input) if t_input else 0.95
 
