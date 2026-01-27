@@ -154,10 +154,10 @@ async def upload_file_menu():
             weights_path = Path(metadata_file.weights_path)
             metadata_file.weights_path = os.path.join(METADATA_PATH, weights_path.name)
             os.makedirs(metadata_file.weights_path, exist_ok=True)
-        if METADATA_PATH not in metadata_file.dataset_path:
+        if DATASETS_TEST_DIR not in metadata_file.dataset_path:
             data_path = Path(metadata_file.dataset_path)
             metadata_file.dataset_path = os.path.join(
-                METADATA_PATH,
+                DATASETS_TEST_DIR,
                 data_path.parent.name if not data_path.is_dir() else data_path.name,
             )
             os.makedirs(metadata_file.dataset_path, exist_ok=True)
