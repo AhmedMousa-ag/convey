@@ -190,12 +190,13 @@ async def create_metadata_menu():
         strategy_choice = int(input("\nSelect merge strategy (number): ").strip())
         merge_strategy = strategies[strategy_choice - 1]
 
-        dataset_path = input("\nDataset Path (default=./data): ").strip() or "./data"
+        dataset_path = input(
+            "\nDataset Path (default=./data): "
+        ).strip() or os.path.join(os.path.curdir, "data")
         model_name = input("Model Name (default=my_model): ").strip() or "my_model"
-        weights_path = (
-            input("Weights Path (default=./saved_models/model_1.pth): ").strip()
-            or "./saved_models/model_1.pth"
-        )
+        weights_path = input(
+            "Weights Path (default=./saved_models/model_1.pth): "
+        ).strip() or os.path.join(os.path.curdir, "saved_models", "model_1.pth")
 
         t_input = input("T - Threshold/Temperature (0.0-1.0, default=0.95): ").strip()
         t = float(t_input) if t_input else 0.95
