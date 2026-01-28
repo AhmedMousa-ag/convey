@@ -24,7 +24,7 @@ class BaseReqRepl:
         self.metadata = metadata
         self.p2p_node = p2p_node
 
-    def __random_p2p_connection(
+    def _random_p2p_connection(
         self, list_of_address: List[str] | None = None
     ) -> socket | None:
         ip_pool = list_of_address or get_connection_p2p_pool(self.metadata.hash_self())
@@ -33,16 +33,16 @@ class BaseReqRepl:
             return get_socket_connection(ip_pool[ip_idx])
         return None
 
-    def __send_msg_rdnm_conn(
+    def _send_msg_rdnm_conn(
         self, msg: str, list_of_address: List[str] | None = None
     ) -> bool:
-        conn = self.__random_p2p_connection(list_of_address)
+        conn = self._random_p2p_connection(list_of_address)
         if conn is None:
             return False
         self.p2p_node.send_message(conn, msg)
         return True
 
-    def __send_file(self, ip: str, file_path: str, file_type: str = "MODEL") -> bool:
+    def _send_file(self, ip: str, file_path: str, file_type: str = "MODEL") -> bool:
         conn = get_socket_connection(ip=ip)
         if conn is None:
             return False
@@ -54,14 +54,14 @@ class Requester(BaseReqRepl):
         super().__init__(metadata, p2p_node)
 
     def ask_is_latest(self, hashed_metadata: str, current_date: datetime):
-        return self.__send_msg_rdnm_conn(
+        return self._send_msg_rdnm_conn(
             self.msg_serializer.get_is_latest(
                 hashed_metadata, current_date=current_date
             )
         )
 
     def sync_dataset(self, hashed_metadata: str) -> bool:
-        return self.__send_msg_rdnm_conn(
+        return self._send_msg_rdnm_conn(
             self.msg_serializer.sync_dataset(hashed_metadata).model_dump_json()
         )
 
@@ -69,7 +69,7 @@ class Requester(BaseReqRepl):
         hashed_metadata = self.metadata.hash_self()
         # Get random address of these ones.
         # send a message with SyncModel
-        self.__send_msg_rdnm_conn(
+        self._send_msg_rdnm_conn(
             msg=P2PMessage(
                 msg_type=P2PMessagesTypes.SYNCModel,
                 message=SyncLatestModel(),
@@ -82,7 +82,7 @@ class Requester(BaseReqRepl):
         # TODO test before updating.
         # TODO test when others accept it.
         for ip in get_connection_p2p_pool(self.metadata.hash_self()):
-            self.__send_file(
+            self._send_file(
                 ip=ip, file_path=self.metadata.weights_path, file_type="MODEL"
             )
 
@@ -109,11 +109,11 @@ class Replier(BaseReqRepl):
         ).model_dump_json()
 
     def reply_sync_model(self, ip: str) -> bool:
-        return self.__send_file(
+        return self._send_file(
             ip=ip, file_path=self.metadata.weights_path, file_type="MODEL"
         )
 
     def reply_sync_dataset(self, ip: str) -> bool:
-        return self.__send_file(
+        return self._send_file(
             ip=ip, file_path=self.metadata.dataset_path, file_type="DATA"
         )
