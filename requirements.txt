@@ -13,3 +13,4 @@ tqdm==4.67.1
 pytest==9.0.2
 websockets==16.0
 streamlit==1.53.0
+dill==0.4.1

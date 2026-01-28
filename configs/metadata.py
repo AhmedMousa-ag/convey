@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from controllers.ml.interface.merge import StrategyType
 import json
-from configs.paths import METADATA_PATH
+from configs.paths import METADATA_PATH, STATIC_MODULES_PATH
 from configs.config import CONVERY_FILE_EXT, DATEIME_FORMAT
 import os
 import hashlib
@@ -18,11 +18,12 @@ class MetadataConfig(BaseModel):
     model_name: str
     weights_path: str
     model_obj_path: str
+    static_model_path: str
     t: float
     # A list of hashed timestamps of each updated weights
     timestamps: List[str] = []
     latest_updated: str | None
-    hashed_scores: str
+    best_score: float = 0.0
 
     @staticmethod
     def parse_file(file_path: str) -> "MetadataConfig":
@@ -45,6 +46,18 @@ class MetadataConfig(BaseModel):
         return MetadataConfig.parse_file(
             os.path.join(METADATA_PATH, model_name + "_" + strategy + CONVERY_FILE_EXT)
         )
+
+    def create_static_path(self) -> str:
+        strategy_type = (
+            self.merge_strategy
+            if isinstance(self.merge_strategy, str)
+            else self.merge_strategy.value
+        )
+        path = os.path.join(
+            STATIC_MODULES_PATH,
+            self.model_name + "_" + strategy_type + ".dill",
+        )
+        return path
 
     def save(self):
         strategy = (

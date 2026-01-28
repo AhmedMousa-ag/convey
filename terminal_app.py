@@ -5,7 +5,12 @@ from configs.metadata import (
     StrategyType,
     add_metadata_pool,
 )
-from configs.paths import METADATA_PATH, MODELS_DIR, DATASETS_TEST_DIR
+from configs.paths import (
+    METADATA_PATH,
+    MODELS_DIR,
+    DATASETS_TEST_DIR,
+    STATIC_MODULES_PATH,
+)
 from controllers.networking.messages import send_msg_sender
 from models.server import SubscribeTopic, ServerMessage, MessagesTypes
 from controllers.networking.threads import start_threads
@@ -210,7 +215,15 @@ async def create_metadata_menu():
         ).strip() or os.path.abspath(
             os.path.join(os.path.curdir, "saved_models", "model_1.pth")
         )
-        print(weights_path)
+        default_static_modules_path = os.path.join(
+            STATIC_MODULES_PATH, f"{model_name}_{merge_strategy}.dill"
+        )
+        static_modules_path = (
+            input(
+                f"Static Modules Path (default={default_static_modules_path})"
+            ).strip()
+            or default_static_modules_path
+        )
         t_input = input("T - Threshold/Temperature (0.0-1.0, default=0.95): ").strip()
         t = float(t_input) if t_input else 0.95
 
@@ -243,7 +256,7 @@ async def create_metadata_menu():
                 t=t,
                 latest_updated=datetime.now().strftime(DATEIME_FORMAT),
                 model_obj_path="",
-                hashed_scores="",
+                static_model_path=static_modules_path,
             )
             metadata.save()
             print(f"\n✓ MetadataConfig created successfully at {METADATA_PATH}")

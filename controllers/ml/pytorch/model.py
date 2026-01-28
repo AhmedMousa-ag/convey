@@ -1,14 +1,16 @@
 from tensorflow.python.keras import Model
 from configs.metadata import MetadataConfig
-from ml.interface.model import IMergerManager
+from ml.interface.model import IMergerManager, IModelStatic
 import torch
 from typing import Dict, Any
 from torch.nn import Module
 
 
 class TorchMergerManager(IMergerManager):
-    def __init__(self, metadata: str | MetadataConfig) -> None:
-        super().__init__(metadata)
+    def __init__(
+        self, metadata: str | MetadataConfig, model_loader: IModelStatic
+    ) -> None:
+        super().__init__(metadata, model_loader)
 
     def load_weights(self) -> Dict[str, Any]:
         return torch.load(self.metadata.weights_path, weights_only=True)
