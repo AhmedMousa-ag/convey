@@ -13,3 +13,5 @@ os.makedirs(DATASETS_TEST_DIR, exist_ok=True)
 
 METADATA_PATH = os.path.join(CONVERY_USR_DIR, "metadata")
 os.makedirs(METADATA_PATH, exist_ok=True)
+ZIPPED_DIRE = os.path.join(CONVERY_USR_DIR, "zipped_files")
+os.makedirs(ZIPPED_DIRE, exist_ok=True)
