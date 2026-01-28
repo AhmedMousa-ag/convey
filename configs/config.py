@@ -1,7 +1,7 @@
 CONVERY_FILE_EXT = ".json"
 SERVER_HOST = "127.0.0.1"
 SERVER_PORT = 3000
-SERVER_URL = f"ws://{SERVER_HOST}:{SERVER_PORT}/ws"
+SERVER_URL = f"wss://convey.ahmedkaremmousa.com/ws"
 WS_CONNECTION_WAIT = 15
 
 CLIENT_PORT = 47987
