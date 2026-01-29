@@ -25,10 +25,11 @@ class IModelStatic(ABC):
         pass
 
     @abstractmethod
-    def is_better_score(self, is_higher_target_score: bool) -> bool:
+    def is_better_score(self) -> bool:
         """target_score: true if higher means better, false if lower means better."""
         is_verified = False
         # Load model new weights.
+
         # Run against the dataset.
         # Compare with old score.
         return is_verified
