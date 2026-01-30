@@ -6,11 +6,9 @@ from typing import Dict, Any
 from torch.nn import Module
 
 
-class TorchMergerManager(IMergerManager):
-    def __init__(
-        self, metadata: str | MetadataConfig, model_loader: IModelStatic
-    ) -> None:
-        super().__init__(metadata, model_loader)
+class TorchModelStatic(IModelStatic):
+    def __init__(self, metadata: MetadataConfig) -> None:
+        super().__init__(metadata)
 
     def load_weights(self) -> Dict[str, Any]:
         return torch.load(self.metadata.weights_path, weights_only=True)
@@ -20,14 +18,16 @@ class TorchMergerManager(IMergerManager):
         self.model = torch.load(self.metadata.model_obj_path)
         return self.model
 
-    def is_better_score(self) -> bool:
-        is_verified = False
-        # Load model new weights.
-        if self.model is None:
-            self.load_model_obj()
-        # Run against the dataset.
-        # Compare with old score.
-        return is_verified
+    # NOTE: Overwrite it.
+    def load_data(self, data_path: str):
+        return super().load_data(data_path)
+
+
+class TorchMergerManager(IMergerManager, TorchModelStatic):
+    def __init__(
+        self, metadata: str | MetadataConfig, model_loader: IModelStatic
+    ) -> None:
+        super().__init__(metadata, model_loader)
 
 
 # Data, previous score, accumulated scores hashed run current score, neg/positive metrics
