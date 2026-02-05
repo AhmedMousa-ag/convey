@@ -1,6 +1,6 @@
 from tensorflow.python.keras import Model
 from configs.metadata import MetadataConfig
-from ml.interface.model import IMergerManager, IModelStatic
+from controllers.ml.interface.model import IMergerManager, IModelStatic
 import torch
 from typing import Dict, Any
 from torch.nn import Module
@@ -15,7 +15,7 @@ class TorchModelStatic(IModelStatic):
 
     def load_model_obj(self) -> Module:
 
-        self.model = torch.load(self.metadata.model_obj_path)
+        self.model = torch.load(self.metadata.model_obj_path, weights_only=False)
         return self.model
 
     # NOTE: Overwrite it.

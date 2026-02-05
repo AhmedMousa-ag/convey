@@ -1,5 +1,5 @@
 from typing import Any, Dict
-from ml.interface.merge import IGreedySoup, ISLERP
+from controllers.ml.interface.merge import IGreedySoup, ISLERP
 import torch
 
 
