@@ -11,7 +11,8 @@ class TorchModelStatic(IModelStatic):
         super().__init__(metadata)
 
     def load_weights(self) -> Dict[str, Any]:
-        return torch.load(self.metadata.weights_path, weights_only=True)
+        # Disabled weights only to bypass torch error. NOTE: you can overwrite the function as per your requirement.
+        return torch.load(self.metadata.weights_path, weights_only=False).state_dict()
 
     def load_model_obj(self) -> Module:
 
