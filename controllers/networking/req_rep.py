@@ -14,7 +14,6 @@ from models.clients import (
     P2PMessagesTypes,
     ResponseIsLatestModel,
     SyncLatestModel,
-    UpdateOthersLatestModel,
 )
 
 
@@ -79,8 +78,6 @@ class Requester(BaseReqRepl):
         )
 
     def update_new_weights(self):
-        # TODO test before updating.
-        # TODO test when others accept it.
         for ip in get_connection_p2p_pool(self.metadata.hash_self()):
             self._send_file(
                 ip=ip, file_path=self.metadata.weights_path, file_type="MODEL"

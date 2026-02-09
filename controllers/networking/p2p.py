@@ -2,10 +2,13 @@ import socket
 import threading
 import os
 from configs.config import CLIENT_PORT, CLIENT_HOST
-from configs.paths import DATASETS_TEST_DIR, MODELS_DIR, ZIPPED_DIRE
+from configs.paths import DATASETS_TEST_DIR, MODELS_DIR, ZIPPED_DIRE, METADATA_PATH
 import zipfile
 from controllers.networking.serializer import MessageSerializer
 from controllers.networking.transmitter import TransmitterManager
+from configs.metadata import MetadataConfig
+import shutil
+from controllers.verifier.update_verifier import ModelVerifier
 
 
 class P2PNode:
@@ -86,6 +89,8 @@ class P2PNode:
 
         # Create directory if it doesn't exist
         os.makedirs(save_dir, exist_ok=True)
+        temp_dire = os.path.join(ZIPPED_DIRE, "temp")
+        os.makedirs(temp_dire, exist_ok=True)
         filepath = os.path.join(save_dir, filename)
         zip_path = os.path.join(ZIPPED_DIRE, filename)
         # Receive and write file data
@@ -98,8 +103,31 @@ class P2PNode:
                 f.write(chunk)
                 received += len(chunk)
         with zipfile.ZipFile(zip_path, "r") as zip_ref:
-            zip_ref.extractall(save_dir)
-            print(f"Files extracted to {save_dir}")
+            if file_type == "MODEL":
+
+                zip_ref.extractall(temp_dire)
+                print(
+                    f"Files extracted to {temp_dire} before checking and moving to {save_dir}"
+                )
+                # Extract the metadata file from  the file name and load the
+                model_name = filename.rsplit(".", 1)[0]  # Remove .zip extension
+                metadata_path = os.path.join(METADATA_PATH, f"{model_name}.json")
+                metadata = MetadataConfig.parse_file(metadata_path)
+                if ModelVerifier(metadata).is_better_model(temp_dire):
+                    shutil.move(temp_dire, save_dir)
+                    print(
+                        f"Model '{filename}' from {addr} is better than the current model."
+                    )
+                else:
+                    print(
+                        f"Received model from {addr} is not better than the current model. Discarding."
+                    )
+            else:
+                zip_ref.extractall(save_dir)
+                print(
+                    f"Files extracted to {save_dir} before checking and moving to {save_dir}"
+                )
+
         print(
             f"{file_type} '{filename}' received successfully ({received} bytes) at {filepath}"
         )
@@ -147,7 +175,9 @@ class P2PNode:
 
         # Ensure file_type is valid (Optional validation depending on your strictness)
         if file_type not in ["MODEL", "DATA"]:
-            print(f"Warning: Unknown file type '{file_type}'. Sending anyway.")
+            raise ValueError(
+                f"Invalid file type '{file_type}'. Must be 'MODEL' or 'DATA'."
+            )
 
         filesize = os.path.getsize(filepath)
 

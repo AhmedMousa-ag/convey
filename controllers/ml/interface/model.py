@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from configs.metadata import MetadataConfig, MetadataConfig
-from typing import Union, Dict, Any, TypeVar
+from typing import Union, Dict, Any, TypeVar, Tuple
 from controllers.ml.interface.merge import StrategyType, IGreedySoup, ISLERP
 from torch.nn import Module
 from tensorflow.python.keras import Model
@@ -44,7 +44,7 @@ class IModelStatic(ABC):
 
 class IVerifier(IModelStatic):
     @abstractmethod
-    def is_better_score(self) -> bool:
+    def is_better_score(self) -> Tuple[bool, Any]:
         """target_score: true if higher means better, false if lower means better."""
         is_verified = False
         # Load model new weights.
@@ -53,7 +53,8 @@ class IVerifier(IModelStatic):
         _ = self.load_model_obj()
         # Run against the dataset.
         # Compare with old score.
-        return is_verified
+        best_score = 0.0
+        return is_verified, best_score
 
     @abstractmethod
     def test_model(

@@ -20,6 +20,7 @@ from controllers.networking.req_rep import Requester
 import shutil
 from pathlib import Path
 from controllers.networking.p2p import p2p_node
+from controllers.verifier.update_verifier import ModelVerifier
 
 
 def clear_screen():
@@ -274,7 +275,59 @@ async def create_metadata_menu():
 
 
 async def update_others_weights_menu():
-    pass
+    # List all metadata files and let user choose which one to update.
+    clear_screen()
+    print_header("UPDATE NETWORK WEIGHTS")
+    list_conv_files = os.listdir(METADATA_PATH)
+    if len(list_conv_files) == 0:
+        print("There's no available files, please upload one or create one.")
+        input("\nPress Enter to continue...")
+        return
+    print("Available files:")
+    for i, file in enumerate(list_conv_files, 1):
+        print(f"{i}. {file}")
+    print("\nEnter file number to update (e.g., 1):")
+    print("Or press Enter to cancel")
+    selection = input("\nYour choice: ").strip()
+    if not selection:
+        return
+    try:
+        index = int(selection.strip()) - 1
+        if not (0 <= index < len(list_conv_files)):
+            print("Invalid selection.")
+            input("\nPress Enter to continue...")
+            return
+        selected_file = list_conv_files[index]
+        metadata = MetadataConfig.parse_file(os.path.join(METADATA_PATH, selected_file))
+        print(f"\nSelected file: {selected_file}")
+        print(f"Metadata content:\n{metadata.model_dump_json(indent=2)}")
+        confirm = input("\nUpdate this model's weights? (y/n): ").strip().lower()
+        if confirm != "y":
+            print("\nUpdate cancelled.")
+            input("\nPress Enter to continue...")
+            return
+        # Let the user decide where is the new weights file.
+        new_weights_path = input(
+            "\nEnter the path to the new weights file (or press Enter to cancel): "
+        ).strip()
+
+        if not new_weights_path:
+            print("\nUpdate cancelled.")
+            input("\nPress Enter to continue...")
+            return
+        if not os.path.exists(new_weights_path):
+            print(f"\nError: File not found at {new_weights_path}")
+            input("\nPress Enter to continue...")
+            return
+        if not ModelVerifier(metadata).is_better_model(new_weights_path):
+            print("\nThe new model does not have a better score. Update cancelled.")
+            return
+        # If verified, send update message to others.
+        requester = Requester(metadata, p2p_node)
+        requester.update_new_weights()
+        print("\nUpdate message sent to the network.")
+    except (ValueError, IndexError) as e:
+        print(f"Invalid selection: {e}")
 
 
 async def main():
