@@ -1,12 +1,14 @@
 from abc import ABC, abstractmethod
 from configs.metadata import MetadataConfig, MetadataConfig
-from typing import Union, Dict, Any
+from typing import Union, Dict, Any, TypeVar
 from controllers.ml.interface.merge import StrategyType, IGreedySoup, ISLERP
 from torch.nn import Module
 from tensorflow.python.keras import Model
 from dill import dump, load
-import os
-from typing import Self, TypeVar
+import torch
+from torch.utils.data import DataLoader
+from tensorflow.python.keras.models import Model
+from tensorflow.python.data import Dataset
 
 T = TypeVar("T", bound="IModelStatic")
 
@@ -52,6 +54,18 @@ class IVerifier(IModelStatic):
         # Run against the dataset.
         # Compare with old score.
         return is_verified
+
+    @abstractmethod
+    def test_model(
+        self, test_loader: DataLoader | Dataset, model: torch.nn.Module | Model
+    ) -> float | Any:
+        result = 0.0
+        return result
+
+
+class IStateVerifierModel(IVerifier):
+    def __init__(self, metadata: MetadataConfig) -> None:
+        super().__init__(metadata)
 
 
 class IMergerManager:

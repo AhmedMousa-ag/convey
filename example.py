@@ -1,6 +1,6 @@
 from configs.metadata import MetadataConfig
 from configs.paths import METADATA_PATH, STATIC_MODULES_PATH
-from controllers.ml.interface.model import IVerifier
+from controllers.ml.interface.model import IVerifier, IStateVerifierModel
 from controllers.ml.pytorch.model import TorchModelStatic
 import os
 import torchvision
@@ -75,7 +75,7 @@ model = TestStaticModel(
 model.save_model_static()
 
 
-loaded_model: TestStaticModel = TestStaticModel.load_model_static(
+loaded_model: IStateVerifierModel = IStateVerifierModel.load_model_static(
     os.path.join(STATIC_MODULES_PATH, "my_model_slerp.dill")
 )
 
