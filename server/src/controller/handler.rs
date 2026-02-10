@@ -1,8 +1,9 @@
 use crate::configs::pool::{
-    add_meta_ip, get_meta_ip_key, get_sender_channel, insert_sender_chan, remove_meta_ip,
-    remover_sender_chan,
+    add_meta_ip, get_meta_ip_key, get_metadata_secret_key, get_sender_channel, insert_sender_chan,
+    remove_meta_ip, remover_sender_chan,
 };
-use crate::models::models::{ClientsIPAddresses, MessagesTypes, ServerMessage};
+use crate::controller::secret_manager::generate_secret_key;
+use crate::models::models::{ClientsIPAddresses, MessagesTypes, SecretMetadataKey, ServerMessage};
 use axum::{
     extract::{
         connect_info::ConnectInfo,
@@ -39,8 +40,26 @@ async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {
                                     let metadata = client_msg.message.hashed_metadata;
                                     add_meta_ip(&metadata,&ip_add).await;
                                     inform_metadata_clients(&metadata,&ip_add,true).await;
-                                    client_stored_metadata.push(metadata);
-                                },
+                                    client_stored_metadata.push(metadata.clone());
+                                    //Get the secret key for this metadata and send it to the client so it can use it for authentication in the future.
+                                    let secret_key = get_metadata_secret_key(&metadata)
+                                        .await//Theoretically, this should not be None since the client should have already got the secret key when it subscribed, but in case of any error, we will generate a new secret key and send it to the client.
+                                        .unwrap_or(generate_secret_key(&metadata).await);
+                                    let msg_to_send_res = serde_json::to_string(&SecretMetadataKey{
+                                        hashed_metadata: metadata,
+                                        new_secret:secret_key,
+                                    });
+                                    if let Ok(msg_to_send) = msg_to_send_res {
+                                        if let Err(e) = socket.send(Message::Text(msg_to_send.into())).await{
+                                            dbg!("{:?}", e);
+                                        }
+                                    }
+
+                                }
+                                MessagesTypes::ChangeSecret=> {
+                                    println!("Got a change secret from client which is shall not be invoked by the client... Will Ignore it");
+                                }
+
                             }
                         } else{
                             println!("Error decoding server message: {:?}",client_msg_res)
@@ -73,6 +92,10 @@ async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {
 ///Informs all clients of each others.
 async fn inform_metadata_clients(metadata_hash: &str, curr_ip_address: &str, is_adding: bool) {
     let all_ips = get_meta_ip_key(metadata_hash).await;
+    let secret_key = get_metadata_secret_key(metadata_hash)
+        .await
+        .unwrap_or(generate_secret_key(metadata_hash).await);
+
     let msg_to_send_res = serde_json::to_string(&ClientsIPAddresses {
         hashed_metadata: metadata_hash.to_string(),
         ip: curr_ip_address.to_string(),
@@ -88,6 +111,15 @@ async fn inform_metadata_clients(metadata_hash: &str, curr_ip_address: &str, is_
             if let Some(sender) = potential_sender {
                 if let Err(e) = sender.send(msg_to_send.clone()) {
                     println!("Error sending internal channel: {}", e);
+                }
+                if let Err(e) = sender.send(
+                    serde_json::to_string(&SecretMetadataKey {
+                        hashed_metadata: metadata_hash.to_string(),
+                        new_secret: secret_key.clone(),
+                    })
+                    .unwrap_or("".to_string()),
+                ) {
+                    println!("Error sending secret key internal channel: {}", e);
                 }
             }
         }

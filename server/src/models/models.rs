@@ -14,14 +14,22 @@ pub struct ClientsIPAddresses {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SecretMetadataKey {
+    pub hashed_metadata: String,
+    pub new_secret: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MessagesTypes {
     Subscribe,
+    ChangeSecret,
 }
 
 impl MessagesTypes {
     pub fn as_str(&self) -> &'static str {
         match self {
             MessagesTypes::Subscribe => "Subscribe",
+            MessagesTypes::ChangeSecret => "ChangeSecret",
         }
     }
 }
