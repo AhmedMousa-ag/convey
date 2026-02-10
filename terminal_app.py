@@ -125,12 +125,14 @@ async def trigger_file_menu():
                 if metadata.latest_updated is None
                 else datetime.strptime(metadata.latest_updated, DATEIME_FORMAT)
             )
+            if not os.path.exists(metadata.static_model_path):
+                requester.sync_static_modules(hashed_metadata)
+            if not os.path.exists(metadata.dataset_path):
+                requester.sync_dataset(hashed_metadata)
             requester.ask_is_latest(
                 hashed_metadata,
                 latest_update,
             )
-            if not os.path.exists(metadata.dataset_path):
-                requester.sync_dataset(hashed_metadata)
 
         print("\nAll files transmitted successfully!")
         input("\nPress Enter to continue...")

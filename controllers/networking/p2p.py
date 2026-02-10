@@ -2,7 +2,13 @@ import socket
 import threading
 import os
 from configs.config import CLIENT_PORT, CLIENT_HOST
-from configs.paths import DATASETS_TEST_DIR, MODELS_DIR, ZIPPED_DIRE, METADATA_PATH
+from configs.paths import (
+    DATASETS_TEST_DIR,
+    MODELS_DIR,
+    ZIPPED_DIRE,
+    METADATA_PATH,
+    STATIC_MODULES_PATH,
+)
 import zipfile
 from controllers.networking.serializer import MessageSerializer
 from controllers.networking.transmitter import TransmitterManager
@@ -84,6 +90,8 @@ class P2PNode:
             save_dir = MODELS_DIR
         elif file_type == "DATA":
             save_dir = DATASETS_TEST_DIR
+        elif file_type == "STATIC_MODULES":
+            save_dir = STATIC_MODULES_PATH
         else:
             save_dir = "received_files"
 
@@ -174,9 +182,9 @@ class P2PNode:
             self.__zip_folder(filepath, zip_path)
 
         # Ensure file_type is valid (Optional validation depending on your strictness)
-        if file_type not in ["MODEL", "DATA"]:
+        if file_type not in ["MODEL", "DATA", "STATIC_MODULES"]:
             raise ValueError(
-                f"Invalid file type '{file_type}'. Must be 'MODEL' or 'DATA'."
+                f"Invalid file type '{file_type}'. Must be 'MODEL', 'STATIC_MODULES', or 'DATA'."
             )
 
         filesize = os.path.getsize(filepath)

@@ -64,6 +64,11 @@ class Requester(BaseReqRepl):
             self.msg_serializer.sync_dataset(hashed_metadata).model_dump_json()
         )
 
+    def sync_static_modules(self, hashed_metadata: str) -> bool:
+        return self._send_msg_rdnm_conn(
+            self.msg_serializer.sync_static_modules(hashed_metadata).model_dump_json()
+        )
+
     def ask_sync_model(self, latest_peers_addr: list[str]):
         hashed_metadata = self.metadata.hash_self()
         # Get random address of these ones.
@@ -113,4 +118,11 @@ class Replier(BaseReqRepl):
     def reply_sync_dataset(self, ip: str) -> bool:
         return self._send_file(
             ip=ip, file_path=self.metadata.dataset_path, file_type="DATA"
+        )
+
+    def reply_sync_static_modules(self, ip: str) -> bool:
+        return self._send_file(
+            ip=ip,
+            file_path=self.metadata.static_model_path,
+            file_type="STATIC_MODULES",
         )

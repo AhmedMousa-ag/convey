@@ -20,6 +20,10 @@ class SyncDataset(BaseModel):
     pass
 
 
+class SyncStaticModules(BaseModel):
+    pass
+
+
 class UpdateOthersLatestModel(BaseModel):
     pass
 
@@ -30,6 +34,7 @@ class P2PMessagesTypes(Enum):
     SYNCModel = "sync_models"
     SYNCDataset = "sync_dataset"
     UPDATE = "update_model"
+    SYNCStaticModules = "sync_static_modules"
 
 
 class P2PMessage(BaseModel):
@@ -41,4 +46,5 @@ class P2PMessage(BaseModel):
         | SyncLatestModel
         | UpdateOthersLatestModel
         | SyncDataset
+        | SyncStaticModules
     )

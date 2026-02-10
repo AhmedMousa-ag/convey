@@ -6,6 +6,7 @@ from models.clients import (
     SyncLatestModel,
     UpdateOthersLatestModel,
     SyncDataset,
+    SyncStaticModules,
 )
 
 import json
@@ -39,6 +40,13 @@ class MessageSerializer:
         return P2PMessage(
             msg_type=P2PMessagesTypes.SYNCDataset,
             message=SyncDataset(),
+            hashed_metadata=hashed_metadata,
+        )
+
+    def sync_static_modules(self, hashed_metadata: str) -> P2PMessage:
+        return P2PMessage(
+            msg_type=P2PMessagesTypes.SYNCStaticModules,
+            message=SyncStaticModules(),
             hashed_metadata=hashed_metadata,
         )
 

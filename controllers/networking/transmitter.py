@@ -40,6 +40,8 @@ class TransmitterManager:
                 self.replier.reply_sync_model(self.peer_address)
             case P2PMessagesTypes.SYNCDataset:
                 self.replier.reply_sync_dataset(self.peer_address)
+            case P2PMessagesTypes.SYNCStaticModules:
+                self.replier.reply_sync_static_modules(self.peer_address)
             # case P2PMessagesTypes.UPDATE:
             #     self.requester.update_new_weights()
             case _:
