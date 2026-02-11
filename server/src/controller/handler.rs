@@ -3,7 +3,7 @@ use crate::configs::pool::{
     remove_meta_ip, remover_sender_chan,
 };
 use crate::controller::secret_manager::generate_secret_key;
-use crate::models::models::{ClientsIPAddresses, MessagesTypes, SecretMetadataKey, ServerMessage};
+use crate::models::models::{ClientsIPAddresses, ConveyMessage, SecretMetadataKey, ServerMessage};
 use axum::{
     extract::{
         connect_info::ConnectInfo,
@@ -34,10 +34,10 @@ async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {
                         let client_msg_res = ServerMessage::decode_str(&text.to_string());
                         if let Ok(client_msg)=client_msg_res {
                             println!("Got a message type: {:?}",client_msg.msg_type);
-                            match client_msg.msg_type {
-                                MessagesTypes::Subscribe=>{
+                            match client_msg.message {
+                                ConveyMessage::SubscribeTopic(subscribe)=>{
                                     println!("Got a subscribe request");
-                                    let metadata = client_msg.message.hashed_metadata;
+                                    let metadata = subscribe.hashed_metadata;
                                     add_meta_ip(&metadata,&ip_add).await;
                                     inform_metadata_clients(&metadata,&ip_add,true).await;
                                     client_stored_metadata.push(metadata.clone());
@@ -56,7 +56,7 @@ async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {
                                     }
 
                                 }
-                                MessagesTypes::ChangeSecret=> {
+                                ConveyMessage::SecretMetadataKey(_)=> {
                                     println!("Got a change secret from client which is shall not be invoked by the client... Will Ignore it");
                                 }
 

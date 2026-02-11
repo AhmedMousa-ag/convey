@@ -20,6 +20,12 @@ pub struct SecretMetadataKey {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ConveyMessage {
+    SubscribeTopic(SubscribeTopic),
+    SecretMetadataKey(SecretMetadataKey),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MessagesTypes {
     Subscribe,
     ChangeSecret,
@@ -37,7 +43,7 @@ impl MessagesTypes {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerMessage {
     pub msg_type: MessagesTypes,
-    pub message: SubscribeTopic,
+    pub message: ConveyMessage,
 }
 
 impl ServerMessage {
