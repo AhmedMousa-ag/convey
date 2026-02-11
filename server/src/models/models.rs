@@ -20,6 +20,7 @@ pub struct SecretMetadataKey {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum ConveyMessage {
     SubscribeTopic(SubscribeTopic),
     SecretMetadataKey(SecretMetadataKey),
