@@ -15,6 +15,8 @@ from controllers.networking.transmitter import TransmitterManager
 from configs.metadata import MetadataConfig
 import shutil
 from controllers.verifier.update_verifier import ModelVerifier
+from typing import Dict
+from models.clients import AuthenticationMessage
 
 
 class P2PNode:
@@ -26,13 +28,24 @@ class P2PNode:
         self.server.bind((self.host, self.port))
         self.server.listen(5)
         self.serializer = MessageSerializer()
+        # TODO probably you should split secret manager to apply SOLID Principles.
+        # Hashed Metadata and the reflected secret key.
+        self.metadata_secrets: Dict[str, str] = {}
         print(f"P2P node listening on {self.host}:{self.port}")
 
-    def handle_peer(self, conn, addr):
+    def update_secret(self, hashed_metadata: str, secret: str):
+        self.metadata_secrets[hashed_metadata] = secret
+
+    def handle_peer(self, conn: socket.socket, addr):
         print(f"Connected by {addr}")
         self.peers.add(addr)
         try:
             while True:
+
+                # Recieve the secret first
+                if not self._verify_secret_key(conn):
+                    self.close_conn(conn, addr)
+
                 # First, receive the message type (fixed 10 bytes)
                 # This could be "TEXT", "MODEL", or "DATA"
                 msg_type = conn.recv(10).decode().strip()
@@ -64,10 +77,39 @@ class P2PNode:
                     print(f"Unknown message type received: {msg_type}")
                     break
         finally:
-            conn.close()
-            if addr in self.peers:
-                self.peers.remove(addr)
-            print(f"Disconnected {addr}")
+            self.close_conn(conn, addr)
+
+    def close_conn(self, conn: socket.socket, addr: str):
+        conn.close()
+        if addr in self.peers:
+            self.peers.remove(addr)
+        print(f"Disconnected {addr}")
+
+    def _verify_secret_key(self, conn: socket.socket) -> bool:
+        try:
+            data = conn.recv(1024).decode()
+
+            auth_msg = AuthenticationMessage.model_validate_json(data)
+            if auth_msg.secret_key == self.metadata_secrets.get(
+                auth_msg.hashed_metadata
+            ):
+                return True
+            return False
+        except Exception as e:
+            print(f"Error verifying secret: {e}")
+            return False
+
+    def _send_secret_key(self, peer_socket: socket.socket, hashed_metadata: str):
+        """
+        Send the secret key to the peer for authentication before each transmission.
+        Returns True if authentication succeeds, False otherwise.
+        """
+        auth_msg = AuthenticationMessage(
+            hashed_metadata=hashed_metadata,
+            secret_key=self.metadata_secrets.get(hashed_metadata) or "",
+        )
+        # TODO you might consider sending the file length first.
+        peer_socket.sendall(auth_msg.model_dump_json().encode())
 
     def _receive_file(self, conn, addr, file_type):
         """
@@ -161,12 +203,24 @@ class P2PNode:
         print(f"Connected to peer {peer_host}:{peer_port}")
         return s
 
-    def send_message(self, peer_socket, message):
+    def send_message(
+        self,
+        peer_socket: socket.socket,
+        message,
+        hashed_metadata: str,
+    ):
         print(f"Will send message: {message}")
+        self._send_secret_key(peer_socket, hashed_metadata)
         peer_socket.sendall(b"TEXT".ljust(10))
         peer_socket.sendall(message.encode())
 
-    def send_file(self, peer_socket, filepath, file_type="MODEL"):
+    def send_file(
+        self,
+        peer_socket: socket.socket,
+        filepath,
+        hashed_metadata: str,
+        file_type="MODEL",
+    ):
         """
         Send a file to a connected peer with a specific type (MODEL or DATA).
         """
@@ -190,7 +244,7 @@ class P2PNode:
         filesize = os.path.getsize(filepath)
 
         print(f"Sending {file_type} '{filename}' ({filesize} bytes)")
-
+        self._send_secret_key(peer_socket, hashed_metadata)
         # 1. Send message type (padded to 10 bytes).
         # We send "MODEL" or "DATA" directly, not "FILE/"
         peer_socket.sendall(file_type.ljust(10).encode())
