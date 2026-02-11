@@ -21,6 +21,7 @@ import shutil
 from pathlib import Path
 from controllers.networking.p2p import p2p_node
 from controllers.verifier.update_verifier import ModelVerifier
+import time
 
 
 def clear_screen():
@@ -79,7 +80,16 @@ async def trigger_file_menu():
 
         print(f"\nTransmitting {len(selected_files)} file(s)...")
         for file in selected_files:
+
             metadata = MetadataConfig.parse_file(os.path.join(METADATA_PATH, file))
+            hashed_metadata = metadata.hash_self()
+            requester = Requester(metadata, p2p_node)
+
+            latest_update = (
+                datetime.min
+                if metadata.latest_updated is None or metadata.latest_updated == ""
+                else datetime.strptime(metadata.latest_updated, DATEIME_FORMAT)
+            )
 
             weights_path = Path(metadata.weights_path)
             models_dir = Path(MODELS_DIR)
@@ -90,27 +100,37 @@ async def trigger_file_menu():
                 print(f"Moving {weights_path} to {dest_weights}")
                 shutil.move(str(weights_path), str(dest_weights))
                 metadata.weights_path = str(dest_weights)
+                metadata.save()
             elif weights_path.parent == models_dir:
-                print(f"Weights already in {models_dir}")
+                # print(f"Weights already in {models_dir}")
+                pass
             else:
-                print(f"Warning: {weights_path} does not exist")
+                print(f"Warning: {weights_path} does not exist, will attempt to sync.")
+                requester.ask_is_latest(
+                    hashed_metadata,
+                    latest_update,
+                )
 
             # Check and move dataset to DATASETS_TEST_DIR
             dataset_path = Path(metadata.dataset_path)
             datasets_dir = Path(DATASETS_TEST_DIR)
 
             if dataset_path.exists() and dataset_path.parent != datasets_dir:
-                datasets_dir.mkdir(parents=True, exist_ok=True)
-                dest_dataset = datasets_dir / dataset_path.name
-                print(f"Moving {dataset_path} to {dest_dataset}")
-                shutil.move(str(dataset_path), str(dest_dataset))
-                metadata.dataset_path = str(dest_dataset)
+                try:
+                    datasets_dir.mkdir(parents=True, exist_ok=True)
+                    dest_dataset = datasets_dir / dataset_path.name
+                    print(f"Moving {dataset_path} to {dest_dataset}")
+                    shutil.move(str(dataset_path), str(dest_dataset))
+                    metadata.dataset_path = str(dest_dataset)
+                    metadata.save()
+                except Exception as e:
+                    print(f"Error moving dataset: {e}")
             elif dataset_path.parent == datasets_dir:
                 print(f"Dataset already in {datasets_dir}")
             else:
-                print(f"Warning: {dataset_path} does not exist")
+                print(f"Warning: {dataset_path} does not exist, will attempt to sync.")
+                requester.sync_dataset(hashed_metadata)
 
-            hashed_metadata = metadata.hash_self()
             add_metadata_pool(hashed_metadata, metadata.get_before_hash())
             await send_msg_sender(
                 ServerMessage(
@@ -119,16 +139,10 @@ async def trigger_file_menu():
                 )
             )
             print(f"Sent {file} to the server")
-            requester = Requester(metadata, p2p_node)
-            latest_update = (
-                datetime.min
-                if metadata.latest_updated is None
-                else datetime.strptime(metadata.latest_updated, DATEIME_FORMAT)
-            )
+
             if not os.path.exists(metadata.static_model_path):
                 requester.sync_static_modules(hashed_metadata)
-            if not os.path.exists(metadata.dataset_path):
-                requester.sync_dataset(hashed_metadata)
+
             requester.ask_is_latest(
                 hashed_metadata,
                 latest_update,
