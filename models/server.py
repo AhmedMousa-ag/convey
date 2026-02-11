@@ -24,4 +24,4 @@ class SecretMetadataKey(BaseModel):
 
 class ServerMessage(BaseModel):
     msg_type: str | MessagesTypes
-    message: SubscribeTopic
+    message: SubscribeTopic | SecretMetadataKey
