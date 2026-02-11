@@ -3,6 +3,11 @@ from enum import Enum
 from datetime import datetime
 
 
+class AuthenticationMessage(BaseModel):
+    hashed_metadata: str
+    secret_key: str
+
+
 class IsLatestModel(BaseModel):
     current_date: datetime
 
