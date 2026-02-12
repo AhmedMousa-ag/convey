@@ -92,11 +92,12 @@ async def trigger_file_menu():
             )
 
             weights_path = Path(metadata.weights_path)
-            models_dir = Path(MODELS_DIR)
+            models_dir = MODELS_DIR
 
             if weights_path.exists() and weights_path.parent != models_dir:
-                models_dir.mkdir(parents=True, exist_ok=True)
-                dest_weights = models_dir / weights_path.name
+                dest_weights = os.path.join(models_dir, metadata.get_model_name())
+                os.makedirs(dest_weights, exist_ok=True)
+                dest_weights = os.path.join(dest_weights, weights_path.name)
                 print(f"Moving {weights_path} to {dest_weights}")
                 shutil.move(str(weights_path), str(dest_weights))
                 metadata.weights_path = str(dest_weights)
@@ -113,13 +114,14 @@ async def trigger_file_menu():
 
             # Check and move dataset to DATASETS_TEST_DIR
             dataset_path = Path(metadata.dataset_path)
-            datasets_dir = Path(DATASETS_TEST_DIR)
+            datasets_dir = DATASETS_TEST_DIR
 
             if dataset_path.exists() and dataset_path.parent != datasets_dir:
                 try:
-                    datasets_dir.mkdir(parents=True, exist_ok=True)
-                    dest_dataset = datasets_dir / dataset_path.name
+                    dest_dataset = os.path.join(datasets_dir, metadata.get_model_name())
+                    dest_dataset = os.path.join(dest_dataset, dataset_path.name)
                     print(f"Moving {dataset_path} to {dest_dataset}")
+                    os.makedirs(dest_dataset, exist_ok=True)
                     shutil.move(str(dataset_path), str(dest_dataset))
                     metadata.dataset_path = str(dest_dataset)
                     metadata.save()
