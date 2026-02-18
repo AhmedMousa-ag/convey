@@ -119,7 +119,6 @@ async def trigger_file_menu():
             if dataset_path.exists() and dataset_path.parent != datasets_dir:
                 try:
                     dest_dataset = os.path.join(datasets_dir, metadata.get_model_name())
-                    dest_dataset = os.path.join(dest_dataset, dataset_path.name)
                     print(f"Moving {dataset_path} to {dest_dataset}")
                     os.makedirs(dest_dataset, exist_ok=True)
                     shutil.move(str(dataset_path), str(dest_dataset))
@@ -260,6 +259,7 @@ async def create_metadata_menu():
         print(f"Dataset Path:     {dataset_path}")
         print(f"Model Name:       {model_name}")
         print(f"Weights Path:     {weights_path}")
+        print(f"Model Static Path: {static_modules_path}")
         print(f"T:                {t}")
         print("-" * 60)
 
