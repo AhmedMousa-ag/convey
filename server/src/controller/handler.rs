@@ -3,7 +3,9 @@ use crate::configs::pool::{
     remove_meta_ip, remover_sender_chan,
 };
 use crate::controller::secret_manager::generate_secret_key;
-use crate::models::models::{ClientsIPAddresses, ConveyMessage, SecretMetadataKey, ServerMessage};
+use crate::models::models::{
+    ClientsIPAddresses, ConveyMessage, MessagesTypes, SecretMetadataKey, ServerMessage,
+};
 use axum::{
     extract::{
         connect_info::ConnectInfo,
@@ -45,10 +47,20 @@ async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {
                                     let secret_key = get_metadata_secret_key(&metadata)
                                         .await//Theoretically, this should not be None since the client should have already got the secret key when it subscribed, but in case of any error, we will generate a new secret key and send it to the client.
                                         .unwrap_or(generate_secret_key(&metadata).await);
-                                    let msg_to_send_res = serde_json::to_string(&SecretMetadataKey{
-                                        hashed_metadata: metadata,
-                                        new_secret:secret_key,
-                                    });
+                                    let msg_to_send_res = serde_json::to_string(&ServerMessage {
+                                            msg_type: MessagesTypes::ChangeSecret,
+                                            message: crate::models::models::ConveyMessage::SecretMetadataKey(SecretMetadataKey {
+                                                hashed_metadata: metadata,
+                                                new_secret: secret_key,
+                                            }),
+                                        });
+                                //     serde_json::to_string(&ConveyMessage::SecretMetadataKey(
+                                //         SecretMetadataKey{
+                                //             hashed_metadata: metadata,
+                                //             new_secret:secret_key,
+                                //      }),
+                                //     msg_type:MessagesTypes::ChangeSecret
+                                // });
                                     if let Ok(msg_to_send) = msg_to_send_res {
                                         if let Err(e) = socket.send(Message::Text(msg_to_send.into())).await{
                                             dbg!("{:?}", e);
