@@ -53,6 +53,7 @@ class Requester(BaseReqRepl):
         super().__init__(metadata, p2p_node)
 
     def ask_is_latest(self, hashed_metadata: str, current_date: datetime):
+        print("Requester: Will ask is latest")
         return self._send_msg_rdnm_conn(
             self.msg_serializer.get_is_latest(
                 hashed_metadata, current_date=current_date
@@ -60,16 +61,19 @@ class Requester(BaseReqRepl):
         )
 
     def sync_dataset(self, hashed_metadata: str) -> bool:
+        print("Requester: sync data")
         return self._send_msg_rdnm_conn(
             self.msg_serializer.sync_dataset(hashed_metadata).model_dump_json()
         )
 
     def sync_static_modules(self, hashed_metadata: str) -> bool:
+        print("Requester: sync modules")
         return self._send_msg_rdnm_conn(
             self.msg_serializer.sync_static_modules(hashed_metadata).model_dump_json()
         )
 
     def ask_sync_model(self, latest_peers_addr: list[str]):
+        print("Requester: ask sync model")
         hashed_metadata = self.metadata.hash_self()
         # Get random address of these ones.
         # send a message with SyncModel
@@ -83,6 +87,7 @@ class Requester(BaseReqRepl):
         )
 
     def update_new_weights(self):
+        print("Requester: update new weights")
         for ip in get_connection_p2p_pool(self.metadata.hash_self()):
             self._send_file(
                 ip=ip, file_path=self.metadata.weights_path, file_type="MODEL"
@@ -95,6 +100,7 @@ class Replier(BaseReqRepl):
 
     def reply_is_latest(self, msg: Dict) -> str:
         # res_model = self.msg_serializer.response_is_latest(msg)
+        print("Reply: is latest model.")
         is_latest_model = IsLatestModel(**msg)
         latest_update = (
             datetime.min
@@ -111,16 +117,19 @@ class Replier(BaseReqRepl):
         ).model_dump_json()
 
     def reply_sync_model(self, ip: str) -> bool:
+        print("Reply: sync model.")
         return self._send_file(
             ip=ip, file_path=self.metadata.weights_path, file_type="MODEL"
         )
 
     def reply_sync_dataset(self, ip: str) -> bool:
+        print("Reply: sync dataset.")
         return self._send_file(
             ip=ip, file_path=self.metadata.dataset_path, file_type="DATA"
         )
 
     def reply_sync_static_modules(self, ip: str) -> bool:
+        print("Reply: sync static modules.")
         return self._send_file(
             ip=ip,
             file_path=self.metadata.static_model_path,
