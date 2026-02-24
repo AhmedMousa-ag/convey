@@ -3,7 +3,7 @@ use crate::{
         config::CHANGE_SECRET_INTERVAL_SECONDS,
         pool::{get_meta_ip_cloned, get_sender_channel, insert_metadata_secret_key},
     },
-    models::models::SecretMetadataKey,
+    models::models::{MessagesTypes, SecretMetadataKey, ServerMessage},
 };
 use sha2::Digest;
 use std::collections::HashMap;
@@ -37,9 +37,12 @@ async fn inform_metadata_clients_change_secret() {
         // Now let's hash265 the metadata_time_uuid to get the new secret.
         let metadata_new_secret = generate_secret_key(&metadata).await;
 
-        let msg_to_send_res = serde_json::to_string(&SecretMetadataKey {
-            hashed_metadata: metadata.clone(),
-            new_secret: metadata_new_secret.clone(),
+        let msg_to_send_res = serde_json::to_string(&ServerMessage {
+            msg_type: MessagesTypes::ChangeSecret,
+            message: crate::models::models::ConveyMessage::SecretMetadataKey(SecretMetadataKey {
+                hashed_metadata: metadata.clone(),
+                new_secret: metadata_new_secret.clone(),
+            }),
         });
         if let Ok(msg_to_send) = msg_to_send_res {
             // Send the new secret to all clients subscribed to this metadata.
