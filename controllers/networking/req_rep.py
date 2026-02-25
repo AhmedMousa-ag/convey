@@ -27,7 +27,7 @@ class BaseReqRepl:
         self.metadata = metadata
         self.p2p_node = p2p_node
         self.fallback_mng = FallbacksManager()
-        fallback_thread = Thread(target=self.__send_pending_messages())
+        fallback_thread = Thread(target=self.__send_pending_messages, daemon=True)
         fallback_thread.start()
 
     def _random_p2p_connection(
