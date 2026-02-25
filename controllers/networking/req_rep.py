@@ -15,6 +15,10 @@ from models.clients import (
     ResponseIsLatestModel,
     SyncLatestModel,
 )
+from models.fallback import FileMsg, StringMsg
+from controllers.networking.messages_fallback import FallbacksManager
+import time
+from threading import Thread
 
 
 class BaseReqRepl:
@@ -22,6 +26,9 @@ class BaseReqRepl:
         self.msg_serializer = MessageSerializer()
         self.metadata = metadata
         self.p2p_node = p2p_node
+        self.fallback_mng = FallbacksManager()
+        fallback_thread = Thread(target=self.__send_pending_messages())
+        fallback_thread.start()
 
     def _random_p2p_connection(
         self, list_of_address: List[str] | None = None
@@ -37,6 +44,7 @@ class BaseReqRepl:
     ) -> bool:
         conn = self._random_p2p_connection(list_of_address)
         if conn is None:
+            self.fallback_mng.register_msg(self.metadata.hash_self(), msg)
             return False
         self.p2p_node.send_message(conn, msg)
         return True
@@ -44,8 +52,37 @@ class BaseReqRepl:
     def _send_file(self, ip: str, file_path: str, file_type: str = "MODEL") -> bool:
         conn = get_socket_connection(ip=ip)
         if conn is None:
+            self.fallback_mng.register_file(
+                self.metadata.hash_self(), ip, file_path, file_type
+            )
             return False
         return self.p2p_node.send_file(conn, filepath=file_path, file_type=file_type)
+
+    def __send_pending_messages(self):
+        while True:
+            fall_back_messages = self.fallback_mng.get_pending_messages()
+            time.sleep(60)  # Check every minute
+            if not fall_back_messages.messages:
+                continue
+            for hashed_metadata, message in fall_back_messages.messages.items():
+                if isinstance(message, StringMsg):
+                    list_ip_addresses = get_connection_p2p_pool(hashed_metadata)
+                    self._send_msg_rdnm_conn(
+                        msg=message.msg,
+                        list_of_address=list_ip_addresses,
+                    )
+
+                elif isinstance(message, FileMsg):
+                    self._send_file(
+                        ip=message.ip,
+                        file_path=message.file_path,
+                        file_type=message.file_type,
+                    )
+                else:
+                    print(
+                        f"Warning: message type {type(message)} is not supported yet."
+                    )
+                self.fallback_mng.remove_fallback_message(hashed_metadata)
 
 
 class Requester(BaseReqRepl):
@@ -72,7 +109,7 @@ class Requester(BaseReqRepl):
             self.msg_serializer.sync_static_modules(hashed_metadata).model_dump_json()
         )
 
-    def ask_sync_model(self, latest_peers_addr: list[str]):
+    def ask_sync_model(self, latest_peers_addr: list[str] | None = None):
         print("Requester: ask sync model")
         hashed_metadata = self.metadata.hash_self()
         # Get random address of these ones.

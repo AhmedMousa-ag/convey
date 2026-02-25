@@ -20,6 +20,21 @@ from models.clients import AuthenticationMessage
 
 
 class P2PNode:
+    """Shared state, #TODO you might consider it.
+    _shared = {}
+
+    def __new__(cls, *args, **kwargs):
+        obj = super().__new__(cls, *args, **kwargs)
+        obj.__dict__ = cls._shared
+        return obj
+    """
+
+    # Singleton pattern
+    def __new__(cls):
+        if not hasattr(cls, "inst"):
+            cls.inst = super().__new__(cls)
+        return cls.inst
+
     def __init__(self):
         self.host = CLIENT_HOST
         self.port = CLIENT_PORT
@@ -28,6 +43,7 @@ class P2PNode:
         self.server.bind((self.host, self.port))
         self.server.listen(5)
         self.serializer = MessageSerializer()
+
         # TODO probably you should split secret manager to apply SOLID Principles.
         # Hashed Metadata and the reflected secret key.
         self.metadata_secrets: Dict[str, str] = {}
@@ -64,7 +80,7 @@ class P2PNode:
                         break
                     print(f"Received from {addr}: {data.decode()}")
                     hashed_metadata, msg_type, message = self.serializer.receive_msg(
-                        data
+                        data.decode()
                     )
                     transmitter = TransmitterManager(
                         hashed_metadata, peer_address=addr, p2p_node=self
@@ -72,7 +88,7 @@ class P2PNode:
                     reply_data = transmitter.reply(msg_type=msg_type, msg=message)
                     if reply_data is None:
                         continue
-                    conn.sendall(reply_data)
+                    conn.sendall(reply_data.encode())
                 else:
                     # Unknown header type
                     print(f"Unknown message type received: {msg_type}")

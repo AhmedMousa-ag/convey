@@ -21,7 +21,6 @@ import shutil
 from pathlib import Path
 from controllers.networking.p2p import p2p_node
 from controllers.verifier.update_verifier import ModelVerifier
-import time
 
 
 def clear_screen():
@@ -107,10 +106,7 @@ async def trigger_file_menu():
                 pass
             else:
                 print(f"Warning: {weights_path} does not exist, will attempt to sync.")
-                requester.ask_is_latest(
-                    hashed_metadata,
-                    latest_update,
-                )
+                requester.ask_sync_model()
 
             # Check and move dataset to DATASETS_TEST_DIR
             dataset_path = Path(metadata.dataset_path)
