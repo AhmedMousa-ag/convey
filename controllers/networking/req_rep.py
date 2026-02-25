@@ -19,6 +19,7 @@ from models.fallback import FileMsg, StringMsg
 from controllers.networking.messages_fallback import FallbacksManager
 import time
 from threading import Thread
+import copy
 
 
 class BaseReqRepl:
@@ -60,29 +61,42 @@ class BaseReqRepl:
 
     def __send_pending_messages(self):
         while True:
-            fall_back_messages = self.fallback_mng.get_pending_messages()
-            time.sleep(60)  # Check every minute
-            if not fall_back_messages.messages:
-                continue
-            for hashed_metadata, message in fall_back_messages.messages.items():
-                if isinstance(message, StringMsg):
-                    list_ip_addresses = get_connection_p2p_pool(hashed_metadata)
-                    self._send_msg_rdnm_conn(
-                        msg=message.msg,
-                        list_of_address=list_ip_addresses,
-                    )
+            keys = list(self.fallback_mng.get_pending_messages().messages.keys())
 
-                elif isinstance(message, FileMsg):
-                    self._send_file(
-                        ip=message.ip,
-                        file_path=message.file_path,
-                        file_type=message.file_type,
-                    )
-                else:
-                    print(
-                        f"Warning: message type {type(message)} is not supported yet."
-                    )
-                self.fallback_mng.remove_fallback_message(hashed_metadata)
+            print("Keys: ", keys)
+            time.sleep(60)  # Check every minute
+            if len(keys) < 1:
+                print("Not keys")
+                continue
+            for hashed_metadata in keys:
+                print("Processing key: ", hashed_metadata)
+                messages = self.fallback_mng.get_pending_messages().messages.get(
+                    hashed_metadata
+                )
+                if not messages:
+                    print("No messages line.")
+                    continue
+                for message in messages:
+                    if isinstance(message, StringMsg):
+                        print("Will send string message.")
+                        list_ip_addresses = get_connection_p2p_pool(hashed_metadata)
+                        self._send_msg_rdnm_conn(
+                            msg=message.msg,
+                            list_of_address=list_ip_addresses,
+                        )
+
+                    elif isinstance(message, FileMsg):
+                        print("Will send file message.")
+                        self._send_file(
+                            ip=message.ip,
+                            file_path=message.file_path,
+                            file_type=message.file_type,
+                        )
+                    else:
+                        print(
+                            f"Warning: message type {type(message)} is not supported yet."
+                        )
+                    self.fallback_mng.remove_fallback_message(hashed_metadata)
 
 
 class Requester(BaseReqRepl):
