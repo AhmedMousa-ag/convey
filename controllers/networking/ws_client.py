@@ -32,6 +32,7 @@ async def read_handler(websocket):
                         print(f"Updated secret for {secret_data.hashed_metadata}")
                     elif msg_type == "Subscribe":
                         # If the message type is for subscribing to a topic
+                        print("Got subscribe message from server................")
                         client_data = ClientsIPAddresses(**msg_data)
                         conn = p2p_node.connect_to_peer(client_data.ip, CLIENT_PORT)
                         update_connection_p2p_pool(client_data, conn)

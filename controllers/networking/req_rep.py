@@ -65,12 +65,9 @@ class BaseReqRepl:
 
             keys = list(self.fallback_mng.get_pending_messages().messages.keys())
 
-            print("Keys: ", keys)
             if len(keys) < 1:
-                print("Not keys")
                 continue
             for hashed_metadata in keys:
-                print("Processing key: ", hashed_metadata)
                 messages = self.fallback_mng.get_pending_messages().messages.get(
                     hashed_metadata
                 )
@@ -80,19 +77,24 @@ class BaseReqRepl:
                 for message in messages:
                     self.fallback_mng.remove_fallback_message(hashed_metadata, message)
                     if isinstance(message, StringMsg):
-                        print("Will send string message.")
                         list_ip_addresses = get_connection_p2p_pool(hashed_metadata)
-                        self._send_msg_rdnm_conn(
-                            msg=message.msg,
-                            list_of_address=list_ip_addresses,
+                        print("List of addresses: ", list_ip_addresses)
+                        print(
+                            "Success sending message: ",
+                            self._send_msg_rdnm_conn(
+                                msg=message.msg,
+                                list_of_address=list_ip_addresses,
+                            ),
                         )
 
                     elif isinstance(message, FileMsg):
-                        print("Will send file message.")
-                        self._send_file(
-                            ip=message.ip,
-                            file_path=message.file_path,
-                            file_type=message.file_type,
+                        print(
+                            "Success sending file: ",
+                            self._send_file(
+                                ip=message.ip,
+                                file_path=message.file_path,
+                                file_type=message.file_type,
+                            ),
                         )
                     else:
                         print(

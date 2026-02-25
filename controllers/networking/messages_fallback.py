@@ -14,7 +14,6 @@ class FallbacksManager:
         return cls.inst
 
     def register_msg(self, hashed_metadata: str, msg: str):
-        print("Will register fallback message: ", hashed_metadata)
         fall_back_messages.messages.setdefault(hashed_metadata, []).append(
             StringMsg(msg=msg)
         )
@@ -26,17 +25,14 @@ class FallbacksManager:
         file_path: str,
         file_type: str,
     ):
-        print("Will register fallback file: ", hashed_metadata)
         fall_back_messages.messages.setdefault(hashed_metadata, []).append(
             FileMsg(file_path=file_path, file_type=file_type, ip=ip)
         )
 
     def get_pending_messages(self) -> FallbackMessages:
-        print("Will get all pending fallback messages.")
         return fall_back_messages
 
     def remove_fallback_message(self, hashed_metadata: str, msg: FileMsg | StringMsg):
-        print("Will remove a fallback message...")
         try:
             fall_back_messages.messages.pop(hashed_metadata).remove(msg)
         except Exception as e:
