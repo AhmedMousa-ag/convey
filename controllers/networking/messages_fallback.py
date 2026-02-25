@@ -35,6 +35,9 @@ class FallbacksManager:
         print("Will get all pending fallback messages.")
         return fall_back_messages
 
-    def remove_fallback_message(self, hashed_metadata: str):
+    def remove_fallback_message(self, hashed_metadata: str, msg: FileMsg | StringMsg):
         print("Will remove a fallback message...")
-        fall_back_messages.messages.pop(hashed_metadata)
+        try:
+            fall_back_messages.messages.pop(hashed_metadata).remove(msg)
+        except Exception as e:
+            print("Exception removing fallback messages: ", e)

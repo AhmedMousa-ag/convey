@@ -61,10 +61,11 @@ class BaseReqRepl:
 
     def __send_pending_messages(self):
         while True:
+            time.sleep(60)  # Check every minute
+
             keys = list(self.fallback_mng.get_pending_messages().messages.keys())
 
             print("Keys: ", keys)
-            time.sleep(60)  # Check every minute
             if len(keys) < 1:
                 print("Not keys")
                 continue
@@ -77,6 +78,7 @@ class BaseReqRepl:
                     print("No messages line.")
                     continue
                 for message in messages:
+                    self.fallback_mng.remove_fallback_message(hashed_metadata, message)
                     if isinstance(message, StringMsg):
                         print("Will send string message.")
                         list_ip_addresses = get_connection_p2p_pool(hashed_metadata)
@@ -96,7 +98,6 @@ class BaseReqRepl:
                         print(
                             f"Warning: message type {type(message)} is not supported yet."
                         )
-                    self.fallback_mng.remove_fallback_message(hashed_metadata)
 
 
 class Requester(BaseReqRepl):
