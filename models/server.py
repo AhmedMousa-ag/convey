@@ -4,7 +4,7 @@ from enum import Enum
 
 class MessagesTypes(Enum):
     SUBSCRIBE = "subscribe"
-    ChangeSecret = "changesecret"
+    ChangeSecret = "changeSecret"
 
 
 class SubscribeTopic(BaseModel):

@@ -27,9 +27,10 @@ pub enum ConveyMessage {
     ReqSubscribeTopic(ReqSubscribeTopic),
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
 pub enum MessagesTypes {
+    #[serde(rename = "subscribe")]
     Subscribe,
+    #[serde(rename = "changeSecret")]
     ChangeSecret,
 }
 
@@ -37,7 +38,7 @@ impl MessagesTypes {
     pub fn as_str(&self) -> &'static str {
         match self {
             MessagesTypes::Subscribe => "subscribe",
-            MessagesTypes::ChangeSecret => "changesecret",
+            MessagesTypes::ChangeSecret => "changeSecret",
         }
     }
 }
