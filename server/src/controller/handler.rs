@@ -17,7 +17,6 @@ use std::net::SocketAddr;
 use tokio::sync::mpsc::unbounded_channel;
 
 pub async fn handler(ws: WebSocketUpgrade, ConnectInfo(addr): ConnectInfo<SocketAddr>) -> Response {
-    // 2. Use 'move' to pass the addr into the socket handler
     ws.on_upgrade(move |socket| handle_socket(socket, addr))
 }
 
@@ -32,28 +31,25 @@ async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {
             Some(Ok(msg)) = socket.recv() => {
                 match msg {
                     Message::Text(text) => {
-                        println!("Got text msg from client: {}\nMessage: {}", ip_add,text);
+                        println!("Got text msg from client: {}\nMessage: {}", ip_add, text);
                         let client_msg_res = ServerMessage::decode_str(&text.to_string());
-                        if let Ok(client_msg)=client_msg_res {
-                            println!("Got a message type: {:?}",client_msg.msg_type);
-                            match client_msg.msg_type {
-                                MessagesTypes::Subscribe => {
+                        if let Ok(client_msg) = client_msg_res {
+                            println!("Got a message type: {:?}", client_msg.msg_type);
+                            match client_msg.message {
+                                ConveyMessage::ReqSubscribeTopic(subscribe) => {
                                     println!("Got a subscribe request");
-                                    if let ConveyMessage::ReqSubscribeTopic(subscribe) = client_msg.message {
-                                        println!("Got a subscribe request");
-                                        let metadata = subscribe.hashed_metadata;
-                                        add_meta_ip(&metadata,&ip_add).await;
-                                        client_stored_metadata.push(metadata.clone());
-                                        inform_metadata_clients(&metadata,&ip_add,true).await;
-                                        inform_self_metadata_clients(&metadata,&ip_add).await;
-                                }}
-                                MessagesTypes::ChangeSecret=> {
-                                    println!("Got a change secret from client which is shall not be invoked by the client... Will Ignore it");
+                                    let metadata = subscribe.hashed_metadata;
+                                    add_meta_ip(&metadata, &ip_add).await;
+                                    client_stored_metadata.push(metadata.clone());
+                                    inform_metadata_clients(&metadata, &ip_add, true).await;
+                                    inform_self_metadata_clients(&metadata, &ip_add).await;
+                                },
+                                _ => {
+                                    println!("Got un supported message from client... Will Ignore it\nMessage: {:?}", client_msg.message);
                                 }
-
                             }
-                        } else{
-                            println!("Error decoding server message: {:?}",client_msg_res)
+                        } else {
+                            println!("Error decoding server message: {:?}", client_msg_res)
                         }
                     },
                     Message::Close(_) => {
@@ -64,15 +60,15 @@ async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {
                 }
             }
             Some(msg) = internal_reciver.recv() => {
-                println!("Will send a message: {:?}",msg);
-                if let Err(e) = socket.send(Message::Text(msg.into())).await{
+                println!("Will send a message: {:?}", msg);
+                if let Err(e) = socket.send(Message::Text(msg.into())).await {
                     dbg!("{:?}", e);
                 }
             }
             else => break
         }
     }
-    //If reached here, the connection is closed.
+    // If reached here, the connection is closed.
     for mtdata in client_stored_metadata {
         remove_meta_ip(&mtdata).await;
         inform_metadata_clients(&mtdata, &ip_add, false).await;
@@ -109,7 +105,8 @@ async fn inform_self_metadata_clients(metadata_hash: &str, curr_ip_address: &str
         }
     }
 }
-///Informs all clients of each others.
+
+/// Informs all clients of each other.
 async fn inform_metadata_clients(metadata_hash: &str, curr_ip_address: &str, is_adding: bool) {
     let all_ips = get_meta_ip_key(metadata_hash).await;
     let secret_key = get_metadata_secret_key(metadata_hash)
@@ -129,7 +126,7 @@ async fn inform_metadata_clients(metadata_hash: &str, curr_ip_address: &str, is_
             if &ip == curr_ip_address {
                 continue;
             }
-            print!("Sending updated ips to: {}", ip);
+            println!("Sending updated ips to: {}", ip);
             let potential_sender = get_sender_channel(&ip).await;
             if let Some(sender) = potential_sender {
                 if let Err(e) = sender.send(
@@ -137,7 +134,7 @@ async fn inform_metadata_clients(metadata_hash: &str, curr_ip_address: &str, is_
                         hashed_metadata: metadata_hash.to_string(),
                         new_secret: secret_key.clone(),
                     })
-                    .unwrap_or("".to_string()),
+                    .unwrap_or_default(),
                 ) {
                     println!("Error sending secret key internal channel: {}", e);
                 }
