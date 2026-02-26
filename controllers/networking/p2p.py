@@ -52,9 +52,6 @@ class P2PNode:
     def update_secret(self, hashed_metadata: str, secret: str):
         print("Will update secret")
         self.metadata_secrets[hashed_metadata] = secret
-        print(
-            f"Updated secret for {hashed_metadata}. Current secrets: {self.metadata_secrets}"
-        )
 
     def handle_peer(self, conn: socket.socket, addr):
         print(f"Connected by {addr}")
@@ -113,9 +110,7 @@ class P2PNode:
     def _verify_secret_key(self, conn: socket.socket) -> bool:
         try:
             data = conn.recv(1024).decode()
-            print("Verification data received: ", data)
             auth_msg = AuthenticationMessage.model_validate_json(data)
-            print("Verifing secret key for hashed metadata: ", self.metadata_secrets)
             if auth_msg.secret_key == self.metadata_secrets.get(
                 auth_msg.hashed_metadata
             ):
@@ -136,7 +131,6 @@ class P2PNode:
             hashed_metadata=hashed_metadata,
             secret_key=self.metadata_secrets.get(hashed_metadata) or "",
         )
-        print("Will send secret key: ", auth_msg)
         # TODO you might consider sending the file length first.
         peer_socket.sendall(auth_msg.model_dump_json().encode())
 
@@ -148,7 +142,6 @@ class P2PNode:
         filename_len_data = conn.recv(4)
         if not filename_len_data:
             return
-        print("Will recieve file.")
         filename_len = int.from_bytes(filename_len_data, byteorder="big")
         filename = conn.recv(filename_len).decode()
 
