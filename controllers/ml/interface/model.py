@@ -3,12 +3,9 @@ from configs.metadata import MetadataConfig, MetadataConfig
 from typing import Union, Dict, Any, TypeVar, Tuple
 from controllers.ml.interface.merge import StrategyType, IGreedySoup, ISLERP
 from torch.nn import Module
-from tensorflow.python.keras import Model
 from dill import dump, load
 import torch
 from torch.utils.data import DataLoader
-from tensorflow.python.keras.models import Model
-from tensorflow.python.data import Dataset
 
 T = TypeVar("T", bound="IModelStatic")
 
@@ -22,7 +19,7 @@ class IModelStatic(ABC):
         pass
 
     @abstractmethod
-    def load_model_obj(self) -> Module | Model:
+    def load_model_obj(self) -> Module:
         pass
 
     @abstractmethod
@@ -58,7 +55,7 @@ class IVerifier(IModelStatic):
 
     @abstractmethod
     def test_model(
-        self, test_loader: DataLoader | Dataset, model: torch.nn.Module | Model
+        self, test_loader: DataLoader, model: torch.nn.Module
     ) -> float | Any:
         result = 0.0
         return result

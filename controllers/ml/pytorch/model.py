@@ -1,4 +1,3 @@
-from tensorflow.python.keras import Model
 from configs.metadata import MetadataConfig
 from controllers.ml.interface.model import IMergerManager, IModelStatic
 import torch
