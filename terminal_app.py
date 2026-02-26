@@ -71,46 +71,57 @@ async def trigger_file_menu():
         selected_files = [
             list_conv_files[i] for i in indices if 0 <= i < len(list_conv_files)
         ]
-
         if not selected_files:
             print("No valid files selected.")
             input("\nPress Enter to continue...")
             return
 
-        print(f"\nTransmitting {len(selected_files)} file(s)...")
         for file in selected_files:
             metadata = MetadataConfig.parse_file(os.path.join(METADATA_PATH, file))
+            hashed_metadata = metadata.hash_self()
+            requester = Requester(metadata, p2p_node)
+            latest_update = (
+                datetime.min
+                if metadata.latest_updated is None or metadata.latest_updated == ""
+                else datetime.strptime(metadata.latest_updated, DATEIME_FORMAT)
+            )
 
             weights_path = Path(metadata.weights_path)
-            models_dir = Path(MODELS_DIR)
-
+            models_dir = MODELS_DIR
+            print("Will check weights.")
             if weights_path.exists() and weights_path.parent != models_dir:
-                models_dir.mkdir(parents=True, exist_ok=True)
-                dest_weights = models_dir / weights_path.name
+                dest_weights = os.path.join(models_dir, metadata.get_model_name())
+                os.makedirs(dest_weights, exist_ok=True)
+                dest_weights = os.path.join(dest_weights, weights_path.name)
                 print(f"Moving {weights_path} to {dest_weights}")
                 shutil.move(str(weights_path), str(dest_weights))
                 metadata.weights_path = str(dest_weights)
+                metadata.save()
             elif weights_path.parent == models_dir:
                 print(f"Weights already in {models_dir}")
             else:
-                print(f"Warning: {weights_path} does not exist")
+                print(f"Warning: {weights_path} does not exist, will attempt to sync.")
+                requester.ask_sync_model()
 
             # Check and move dataset to DATASETS_TEST_DIR
             dataset_path = Path(metadata.dataset_path)
-            datasets_dir = Path(DATASETS_TEST_DIR)
-
+            datasets_dir = DATASETS_TEST_DIR
             if dataset_path.exists() and dataset_path.parent != datasets_dir:
-                datasets_dir.mkdir(parents=True, exist_ok=True)
-                dest_dataset = datasets_dir / dataset_path.name
-                print(f"Moving {dataset_path} to {dest_dataset}")
-                shutil.move(str(dataset_path), str(dest_dataset))
-                metadata.dataset_path = str(dest_dataset)
+                try:
+                    dest_dataset = os.path.join(datasets_dir, metadata.get_model_name())
+                    print(f"Moving {dataset_path} to {dest_dataset}")
+                    os.makedirs(dest_dataset, exist_ok=True)
+                    shutil.move(str(dataset_path), str(dest_dataset))
+                    metadata.dataset_path = str(dest_dataset)
+                    metadata.save()
+                except Exception as e:
+                    print(f"Error moving dataset: {e}")
             elif dataset_path.parent == datasets_dir:
                 print(f"Dataset already in {datasets_dir}")
             else:
-                print(f"Warning: {dataset_path} does not exist")
-
-            hashed_metadata = metadata.hash_self()
+                print(f"Warning: {dataset_path} does not exist, will attempt to sync.")
+                requester.sync_dataset(hashed_metadata)
+            print("Will connect to the backend server.")
             add_metadata_pool(hashed_metadata, metadata.get_before_hash())
             await send_msg_sender(
                 ServerMessage(
@@ -119,22 +130,15 @@ async def trigger_file_menu():
                 )
             )
             print(f"Sent {file} to the server")
-            requester = Requester(metadata, p2p_node)
-            latest_update = (
-                datetime.min
-                if metadata.latest_updated is None
-                else datetime.strptime(metadata.latest_updated, DATEIME_FORMAT)
-            )
+
             if not os.path.exists(metadata.static_model_path):
                 requester.sync_static_modules(hashed_metadata)
-            if not os.path.exists(metadata.dataset_path):
-                requester.sync_dataset(hashed_metadata)
+
             requester.ask_is_latest(
                 hashed_metadata,
                 latest_update,
             )
 
-        print("\nAll files transmitted successfully!")
         input("\nPress Enter to continue...")
 
     except (ValueError, IndexError) as e:
@@ -244,6 +248,7 @@ async def create_metadata_menu():
         print(f"Dataset Path:     {dataset_path}")
         print(f"Model Name:       {model_name}")
         print(f"Weights Path:     {weights_path}")
+        print(f"Model Static Path: {static_modules_path}")
         print(f"T:                {t}")
         print("-" * 60)
 
@@ -336,7 +341,7 @@ async def main():
     """Main application loop"""
     start_threads()
     while True:
-        clear_screen()
+        # clear_screen()
         print_header("CONVEY - Main Menu")
 
         options = [

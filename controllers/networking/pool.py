@@ -17,6 +17,7 @@ updated_models_ips_pool: Dict[str, Dict[datetime, List[str]]] = {}
 
 def add_latest_ip_updated_models(hashed_metadata: str, ip: str, date: datetime):
     updated_models_ips_pool.setdefault(hashed_metadata, {date: []})[date].append(ip)
+    print("Updated latest ip ")
 
 
 def remove_latest_ip_updated_models(hashed_metadata: str, ip: str):

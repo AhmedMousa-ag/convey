@@ -47,6 +47,13 @@ class MetadataConfig(BaseModel):
             os.path.join(METADATA_PATH, model_name + "_" + strategy + CONVERY_FILE_EXT)
         )
 
+    def get_model_name(self) -> str:
+        return (
+            self.model_name + "_" + self.merge_strategy
+            if isinstance(self.merge_strategy, str)
+            else self.merge_strategy.value
+        )
+
     def create_static_path(self) -> str:
         strategy_type = (
             self.merge_strategy

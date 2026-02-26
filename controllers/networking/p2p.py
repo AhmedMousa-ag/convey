@@ -20,6 +20,21 @@ from models.clients import AuthenticationMessage
 
 
 class P2PNode:
+    """Shared state, #TODO you might consider it.
+    _shared = {}
+
+    def __new__(cls, *args, **kwargs):
+        obj = super().__new__(cls, *args, **kwargs)
+        obj.__dict__ = cls._shared
+        return obj
+    """
+
+    # Singleton pattern
+    def __new__(cls):
+        if not hasattr(cls, "inst"):
+            cls.inst = super().__new__(cls)
+        return cls.inst
+
     def __init__(self):
         self.host = CLIENT_HOST
         self.port = CLIENT_PORT
@@ -28,12 +43,14 @@ class P2PNode:
         self.server.bind((self.host, self.port))
         self.server.listen(5)
         self.serializer = MessageSerializer()
+
         # TODO probably you should split secret manager to apply SOLID Principles.
         # Hashed Metadata and the reflected secret key.
         self.metadata_secrets: Dict[str, str] = {}
         print(f"P2P node listening on {self.host}:{self.port}")
 
     def update_secret(self, hashed_metadata: str, secret: str):
+        print("Will update secret")
         self.metadata_secrets[hashed_metadata] = secret
 
     def handle_peer(self, conn: socket.socket, addr):
@@ -49,7 +66,7 @@ class P2PNode:
                 # First, receive the message type (fixed 10 bytes)
                 # This could be "TEXT", "MODEL", or "DATA"
                 msg_type = conn.recv(10).decode().strip()
-
+                print(f"Recived message type: {msg_type}")
                 if not msg_type:
                     break
 
@@ -63,7 +80,7 @@ class P2PNode:
                         break
                     print(f"Received from {addr}: {data.decode()}")
                     hashed_metadata, msg_type, message = self.serializer.receive_msg(
-                        data
+                        data.decode()
                     )
                     transmitter = TransmitterManager(
                         hashed_metadata, peer_address=addr, p2p_node=self
@@ -71,7 +88,7 @@ class P2PNode:
                     reply_data = transmitter.reply(msg_type=msg_type, msg=message)
                     if reply_data is None:
                         continue
-                    conn.sendall(reply_data)
+                    conn.sendall(reply_data.encode())
                 else:
                     # Unknown header type
                     print(f"Unknown message type received: {msg_type}")
@@ -93,7 +110,9 @@ class P2PNode:
             if auth_msg.secret_key == self.metadata_secrets.get(
                 auth_msg.hashed_metadata
             ):
+                print("Secret verified.")
                 return True
+            print("Couldn't verify secret")
             return False
         except Exception as e:
             print(f"Error verifying secret: {e}")
@@ -119,6 +138,7 @@ class P2PNode:
         filename_len_data = conn.recv(4)
         if not filename_len_data:
             return
+        print("Will recieve file.")
         filename_len = int.from_bytes(filename_len_data, byteorder="big")
         filename = conn.recv(filename_len).decode()
 
@@ -153,6 +173,7 @@ class P2PNode:
                 f.write(chunk)
                 received += len(chunk)
         with zipfile.ZipFile(zip_path, "r") as zip_ref:
+            print("Will unzip folder")
             if file_type == "MODEL":
 
                 zip_ref.extractall(temp_dire)
@@ -209,7 +230,7 @@ class P2PNode:
         message,
         hashed_metadata: str,
     ):
-        print(f"Will send message: {message}")
+        print(f"Will send p2p message: {message}")
         self._send_secret_key(peer_socket, hashed_metadata)
         peer_socket.sendall(b"TEXT".ljust(10))
         peer_socket.sendall(message.encode())
@@ -240,7 +261,7 @@ class P2PNode:
             raise ValueError(
                 f"Invalid file type '{file_type}'. Must be 'MODEL', 'STATIC_MODULES', or 'DATA'."
             )
-
+        print("Will send file type: ", file_type)
         filesize = os.path.getsize(filepath)
 
         print(f"Sending {file_type} '{filename}' ({filesize} bytes)")
@@ -279,6 +300,7 @@ class P2PNode:
             return False
 
     def __zip_folder(self, filepath, zip_path):
+        print("Will zip folder")
         with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
             # 2. Use os.walk to catch all files in subdirectories
             for root, _, files in os.walk(filepath):
