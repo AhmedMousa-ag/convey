@@ -60,6 +60,7 @@ class MessageSerializer:
     def receive_msg(
         self, received_raw_message: str
     ) -> Tuple[str, P2PMessagesTypes, Dict]:
+        print(f"Received raw message: {received_raw_message}")
         raw_message: Dict = json.loads(received_raw_message)
         hashed_metadata: str = raw_message["hashed_metadata"]
         message: Dict = raw_message["message"]
