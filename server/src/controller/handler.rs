@@ -41,8 +41,9 @@ async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {
                                     let metadata = subscribe.hashed_metadata;
                                     add_meta_ip(&metadata, &ip_add).await;
                                     client_stored_metadata.push(metadata.clone());
-                                    inform_metadata_clients(&metadata, &ip_add, true).await;
                                     inform_self_metadata_clients(&metadata, &ip_add).await;
+                                    inform_metadata_clients(&metadata, &ip_add, true).await;
+
                                 },
                                 _ => {
                                     println!("Got un supported message from client... Will Ignore it\nMessage: {:?}", client_msg.message);
