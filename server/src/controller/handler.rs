@@ -88,6 +88,19 @@ async fn inform_self_metadata_clients(metadata_hash: &str, curr_ip_address: &str
 
     for ip in all_ips {
         if ip == curr_ip_address {
+            // Send secret key to self as well, then continue to next ip without sending the subscribe message.
+            let secret_key = get_metadata_secret_key(metadata_hash)
+                .await
+                .unwrap_or(generate_secret_key(metadata_hash).await);
+            if let Err(e) = sender.send(
+                serde_json::to_string(&SecretMetadataKey {
+                    hashed_metadata: metadata_hash.to_string(),
+                    new_secret: secret_key.clone(),
+                })
+                .unwrap_or_default(),
+            ) {
+                println!("Error sending secret key internal channel: {}", e);
+            }
             continue;
         }
         let msg_to_send_res = serde_json::to_string(&ServerMessage {
