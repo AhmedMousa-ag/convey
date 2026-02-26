@@ -77,7 +77,6 @@ async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {
 }
 
 async fn inform_self_metadata_clients(metadata_hash: &str, curr_ip_address: &str) {
-    println!("Informing self clients of other clients with same metadata...");
     let all_ips = get_meta_ip_key(metadata_hash).await;
     let sender = match get_sender_channel(&curr_ip_address).await {
         Some(sender) => sender,
@@ -88,10 +87,6 @@ async fn inform_self_metadata_clients(metadata_hash: &str, curr_ip_address: &str
     };
 
     for ip in all_ips {
-        println!(
-            "Checking IP: {} against current IP: {}",
-            ip, curr_ip_address
-        );
         if ip == curr_ip_address {
             continue;
         }
@@ -113,7 +108,6 @@ async fn inform_self_metadata_clients(metadata_hash: &str, curr_ip_address: &str
 
 /// Informs all clients of each other.
 async fn inform_metadata_clients(metadata_hash: &str, curr_ip_address: &str, is_adding: bool) {
-    println!("Informing self clients of other clients with same metadata...");
     let all_ips = get_meta_ip_key(metadata_hash).await;
     let secret_key = get_metadata_secret_key(metadata_hash)
         .await
@@ -129,10 +123,6 @@ async fn inform_metadata_clients(metadata_hash: &str, curr_ip_address: &str, is_
     });
     if let Ok(msg_to_send) = msg_to_send_res {
         for ip in all_ips {
-            println!(
-                "Checking IP: {} against current IP: {}",
-                ip, curr_ip_address
-            );
             if &ip == curr_ip_address {
                 continue;
             }

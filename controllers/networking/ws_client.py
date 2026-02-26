@@ -12,7 +12,6 @@ from models.server import SecretMetadataKey, MessagesTypes
 
 async def read_handler(websocket):
     """Handles receiving messages from the server."""
-    print("Started to receive messages")
     try:
         async for message in websocket:
             if isinstance(message, str):
@@ -62,12 +61,9 @@ async def write_handler(websocket):
 
 
 async def server_ws_client():
-    print("Started ws client.")
     while True:  # Reconnection Loop
         try:
             async with websockets.connect(SERVER_URL) as websocket:
-                print(f"Connected to {SERVER_URL}")
-
                 # Run both Reader and Writer concurrently
                 await asyncio.gather(read_handler(websocket), write_handler(websocket))
 

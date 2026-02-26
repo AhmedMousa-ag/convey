@@ -207,8 +207,6 @@ class P2PNode:
         conn.sendall(b"ACK")
 
     def start_server(self):
-        print("Started p2p server.")
-
         def run():
             while True:
                 conn, addr = self.server.accept()
