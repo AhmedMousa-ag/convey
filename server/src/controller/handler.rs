@@ -40,35 +40,10 @@ async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {
                                 MessagesTypes::Subscribe => {
                                     println!("Got a subscribe request");
                                     if let ConveyMessage::SubscribeTopic(subscribe) = client_msg.message {
-
                                     println!("Got a subscribe request");
                                     let metadata = subscribe.hashed_metadata;
                                     add_meta_ip(&metadata,&ip_add).await;
-
                                     client_stored_metadata.push(metadata.clone());
-                                    //Get the secret key for this metadata and send it to the client so it can use it for authentication in the future.
-                                    // let secret_key = get_metadata_secret_key(&metadata)
-                                    //     .await//Theoretically, this should not be None since the client should have already got the secret key when it subscribed, but in case of any error, we will generate a new secret key and send it to the client.
-                                    //     .unwrap_or(generate_secret_key(&metadata).await);
-                                    // let msg_to_send_res = serde_json::to_string(&ServerMessage {
-                                    //         msg_type: MessagesTypes::ChangeSecret,
-                                    //         message: crate::models::models::ConveyMessage::SecretMetadataKey(SecretMetadataKey {
-                                    //             hashed_metadata: metadata.clone(),
-                                    //             new_secret: secret_key,
-                                    //         }),
-                                    //     });
-                                //     serde_json::to_string(&ConveyMessage::SecretMetadataKey(
-                                //         SecretMetadataKey{
-                                //             hashed_metadata: metadata,
-                                //             new_secret:secret_key,
-                                //      }),
-                                //     msg_type:MessagesTypes::ChangeSecret
-                                // });
-                                    // if let Ok(msg_to_send) = msg_to_send_res {
-                                    //     if let Err(e) = socket.send(Message::Text(msg_to_send.into())).await{
-                                    //         dbg!("{:?}", e);
-                                    //     }
-                                    // }
                                     inform_metadata_clients(&metadata,&ip_add,true).await;
                                     inform_self_metadata_clients(&metadata,&ip_add).await;
                                 }}

@@ -3,8 +3,8 @@ from enum import Enum
 
 
 class MessagesTypes(Enum):
-    SUBSCRIBE = "Subscribe"
-    ChangeSecret = "ChangeSecret"
+    SUBSCRIBE = "subscribe"
+    ChangeSecret = "changesecret"
 
 
 class SubscribeTopic(BaseModel):
