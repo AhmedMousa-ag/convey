@@ -92,13 +92,14 @@ async fn inform_self_metadata_clients(metadata_hash: &str, curr_ip_address: &str
             let secret_key = get_metadata_secret_key(metadata_hash)
                 .await
                 .unwrap_or(generate_secret_key(metadata_hash).await);
-            if let Err(e) = sender.send(
-                serde_json::to_string(&ConveyMessage::SecretMetadataKey(SecretMetadataKey {
+            let secret_msg = ServerMessage {
+                msg_type: MessagesTypes::ChangeSecret,
+                message: ConveyMessage::SecretMetadataKey(SecretMetadataKey {
                     hashed_metadata: metadata_hash.to_string(),
                     new_secret: secret_key.clone(),
-                }))
-                .unwrap_or_default(),
-            ) {
+                }),
+            };
+            if let Err(e) = sender.send(serde_json::to_string(&secret_msg).unwrap_or_default()) {
                 println!("Error sending secret key internal channel: {}", e);
             }
             continue;
@@ -142,13 +143,15 @@ async fn inform_metadata_clients(metadata_hash: &str, curr_ip_address: &str, is_
             println!("Sending updated ips to: {}", ip);
             let potential_sender = get_sender_channel(&ip).await;
             if let Some(sender) = potential_sender {
-                if let Err(e) = sender.send(
-                    serde_json::to_string(&&ConveyMessage::SecretMetadataKey(SecretMetadataKey {
+                let secret_msg = ServerMessage {
+                    msg_type: MessagesTypes::ChangeSecret,
+                    message: ConveyMessage::SecretMetadataKey(SecretMetadataKey {
                         hashed_metadata: metadata_hash.to_string(),
                         new_secret: secret_key.clone(),
-                    }))
-                    .unwrap_or_default(),
-                ) {
+                    }),
+                };
+                if let Err(e) = sender.send(serde_json::to_string(&secret_msg).unwrap_or_default())
+                {
                     println!("Error sending secret key internal channel: {}", e);
                 }
                 if let Err(e) = sender.send(msg_to_send.clone()) {
