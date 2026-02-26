@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Error;
 
-// #[derive(Debug, Clone, Serialize, Deserialize)]
-// pub struct SubscribeTopic {
-//     pub hashed_metadata: String,
-// }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReqSubscribeTopic {
+    pub hashed_metadata: String,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClientsIPAddresses {
@@ -24,6 +24,7 @@ pub struct SecretMetadataKey {
 pub enum ConveyMessage {
     SubscribeTopic(ClientsIPAddresses),
     SecretMetadataKey(SecretMetadataKey),
+    ReqSubscribeTopic(ReqSubscribeTopic),
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]

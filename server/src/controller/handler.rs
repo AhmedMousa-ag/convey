@@ -39,13 +39,13 @@ async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {
                             match client_msg.msg_type {
                                 MessagesTypes::Subscribe => {
                                     println!("Got a subscribe request");
-                                    if let ConveyMessage::SubscribeTopic(subscribe) = client_msg.message {
-                                    println!("Got a subscribe request");
-                                    let metadata = subscribe.hashed_metadata;
-                                    add_meta_ip(&metadata,&ip_add).await;
-                                    client_stored_metadata.push(metadata.clone());
-                                    inform_metadata_clients(&metadata,&ip_add,true).await;
-                                    inform_self_metadata_clients(&metadata,&ip_add).await;
+                                    if let ConveyMessage::ReqSubscribeTopic(subscribe) = client_msg.message {
+                                        println!("Got a subscribe request");
+                                        let metadata = subscribe.hashed_metadata;
+                                        add_meta_ip(&metadata,&ip_add).await;
+                                        client_stored_metadata.push(metadata.clone());
+                                        inform_metadata_clients(&metadata,&ip_add,true).await;
+                                        inform_self_metadata_clients(&metadata,&ip_add).await;
                                 }}
                                 MessagesTypes::ChangeSecret=> {
                                     println!("Got a change secret from client which is shall not be invoked by the client... Will Ignore it");

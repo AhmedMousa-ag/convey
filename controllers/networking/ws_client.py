@@ -7,7 +7,7 @@ from controllers.networking.messages import get_msg_sender
 from models.server import ClientsIPAddresses
 from controllers.networking.pool import update_connection_p2p_pool
 from controllers.networking.p2p import p2p_node
-from models.server import SecretMetadataKey
+from models.server import SecretMetadataKey, MessagesTypes
 
 
 async def read_handler(websocket):
@@ -23,14 +23,14 @@ async def read_handler(websocket):
                     msg_type = data.get("msg_type")
                     print("Server: Recieved msg type: ", msg_type)
                     # If the message type is for changing the secret key
-                    if msg_type == "ChangeSecret":
+                    if msg_type == MessagesTypes.ChangeSecret.value:
                         secret_data = SecretMetadataKey(**msg_data)
                         # Update the secret key in the p2p node
                         p2p_node.update_secret(
                             secret_data.hashed_metadata, secret_data.new_secret
                         )
                         print(f"Updated secret for {secret_data.hashed_metadata}")
-                    elif msg_type == "Subscribe":
+                    elif msg_type == MessagesTypes.SUBSCRIBE.value:
                         # If the message type is for subscribing to a topic
                         print("Got subscribe message from server................")
                         client_data = ClientsIPAddresses(**msg_data)
