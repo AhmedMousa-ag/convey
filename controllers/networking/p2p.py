@@ -111,13 +111,14 @@ class P2PNode:
         try:
             data = conn.recv(1024).decode()
             auth_msg = AuthenticationMessage.model_validate_json(data)
-            if auth_msg.secret_key == self.metadata_secrets.get(
-                auth_msg.hashed_metadata
-            ):
+            print(f"Recived authentication message: {auth_msg}")
+            recived_secret = auth_msg.secret_key
+            existing_secret = self.metadata_secrets.get(auth_msg.hashed_metadata)
+            if recived_secret == existing_secret:
                 print("Secret verified.")
                 return True
             print(
-                f"Couldn't verify secret as recieved: {auth_msg.secret_key}, expected: {self.metadata_secrets.get(auth_msg.hashed_metadata)}"
+                f"Couldn't verify secret as recieved: {recived_secret}, expected: {existing_secret}"
             )
             return False
         except Exception as e:

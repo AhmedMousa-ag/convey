@@ -1,7 +1,10 @@
 use crate::{
     configs::{
         config::CHANGE_SECRET_INTERVAL_SECONDS,
-        pool::{get_meta_ip_cloned, get_sender_channel, insert_metadata_secret_key},
+        pool::{
+            get_meta_ip_cloned, get_metadata_secret_key, get_sender_channel,
+            insert_metadata_secret_key,
+        },
     },
     models::models::{MessagesTypes, SecretMetadataKey, ServerMessage},
 };
@@ -35,7 +38,9 @@ async fn inform_metadata_clients_change_secret() {
     let meta_ips: HashMap<String, Vec<String>> = get_meta_ip_cloned().await;
     for (metadata, ips) in meta_ips {
         // Now let's hash265 the metadata_time_uuid to get the new secret.
-        let metadata_new_secret = generate_secret_key(&metadata).await;
+        let metadata_new_secret = get_metadata_secret_key(&metadata)
+            .await
+            .unwrap_or(generate_secret_key(&metadata).await);
 
         let msg_to_send_res = serde_json::to_string(&ServerMessage {
             msg_type: MessagesTypes::ChangeSecret,
