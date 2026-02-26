@@ -116,7 +116,9 @@ class P2PNode:
             ):
                 print("Secret verified.")
                 return True
-            print("Couldn't verify secret")
+            print(
+                f"Couldn't verify secret as recieved: {auth_msg.secret_key}, expected: {self.metadata_secrets.get(auth_msg.hashed_metadata)}"
+            )
             return False
         except Exception as e:
             print(f"Error verifying secret: {e}")
