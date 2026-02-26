@@ -36,7 +36,7 @@ class BaseReqRepl:
     ) -> socket | None:
         ip_pool = list_of_address or get_connection_p2p_pool(self.metadata.hash_self())
         if len(ip_pool) > 0:
-            ip_idx = random.randint(1, len(ip_pool))
+            ip_idx = random.randint(0, len(ip_pool) - 1)
             return get_socket_connection(ip_pool[ip_idx])
         return None
 
