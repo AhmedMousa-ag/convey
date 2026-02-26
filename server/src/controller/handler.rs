@@ -93,10 +93,10 @@ async fn inform_self_metadata_clients(metadata_hash: &str, curr_ip_address: &str
                 .await
                 .unwrap_or(generate_secret_key(metadata_hash).await);
             if let Err(e) = sender.send(
-                serde_json::to_string(&SecretMetadataKey {
+                serde_json::to_string(&ConveyMessage::SecretMetadataKey(SecretMetadataKey {
                     hashed_metadata: metadata_hash.to_string(),
                     new_secret: secret_key.clone(),
-                })
+                }))
                 .unwrap_or_default(),
             ) {
                 println!("Error sending secret key internal channel: {}", e);
@@ -143,10 +143,10 @@ async fn inform_metadata_clients(metadata_hash: &str, curr_ip_address: &str, is_
             let potential_sender = get_sender_channel(&ip).await;
             if let Some(sender) = potential_sender {
                 if let Err(e) = sender.send(
-                    serde_json::to_string(&SecretMetadataKey {
+                    serde_json::to_string(&&ConveyMessage::SecretMetadataKey(SecretMetadataKey {
                         hashed_metadata: metadata_hash.to_string(),
                         new_secret: secret_key.clone(),
-                    })
+                    }))
                     .unwrap_or_default(),
                 ) {
                     println!("Error sending secret key internal channel: {}", e);
