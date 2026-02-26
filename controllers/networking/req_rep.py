@@ -26,6 +26,7 @@ class BaseReqRepl:
     def __init__(self, metadata: MetadataConfig, p2p_node) -> None:
         self.msg_serializer = MessageSerializer()
         self.metadata = metadata
+        self.hashed_metadata = self.metadata.hash_self()
         self.p2p_node = p2p_node
         self.fallback_mng = FallbacksManager()
         fallback_thread = Thread(target=self.__send_pending_messages, daemon=True)
@@ -47,7 +48,12 @@ class BaseReqRepl:
         if conn is None:
             self.fallback_mng.register_msg(self.metadata.hash_self(), msg)
             return False
-        self.p2p_node.send_message(conn, msg)
+        """
+        peer_socket: socket.socket,
+        message,
+        hashed_metadata: str,
+        """
+        self.p2p_node.send_message(conn, msg, self.hashed_metadata)
         return True
 
     def _send_file(self, ip: str, file_path: str, file_type: str = "MODEL") -> bool:
@@ -57,7 +63,18 @@ class BaseReqRepl:
                 self.metadata.hash_self(), ip, file_path, file_type
             )
             return False
-        return self.p2p_node.send_file(conn, filepath=file_path, file_type=file_type)
+        """
+        peer_socket: socket.socket,
+        filepath,
+        hashed_metadata: str,
+        file_type="MODEL",
+        """
+        return self.p2p_node.send_file(
+            conn,
+            filepath=file_path,
+            file_type=file_type,
+            hashed_metadata=self.hashed_metadata,
+        )
 
     def __send_pending_messages(self):
         while True:
