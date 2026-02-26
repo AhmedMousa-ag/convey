@@ -52,6 +52,9 @@ class P2PNode:
     def update_secret(self, hashed_metadata: str, secret: str):
         print("Will update secret")
         self.metadata_secrets[hashed_metadata] = secret
+        print(
+            f"Updated secret for {hashed_metadata}. Current secrets: {self.metadata_secrets}"
+        )
 
     def handle_peer(self, conn: socket.socket, addr):
         print(f"Connected by {addr}")
@@ -112,6 +115,7 @@ class P2PNode:
             data = conn.recv(1024).decode()
             print("Verification data received: ", data)
             auth_msg = AuthenticationMessage.model_validate_json(data)
+            print("Verifing secret key for hashed metadata: ", self.metadata_secrets)
             if auth_msg.secret_key == self.metadata_secrets.get(
                 auth_msg.hashed_metadata
             ):
