@@ -58,13 +58,18 @@ class P2PNode:
         self.peers.add(addr)
         try:
             while True:
-
+                print(
+                    f"Recieving message, checking if connection closed: {conn.fileno()}"
+                )
                 # Recieve the secret first
                 if not self._verify_secret_key(conn):
+                    print(f"Authentication failed for {addr}. Closing connection.")
                     self.close_conn(conn, addr)
+                    return
 
                 # First, receive the message type (fixed 10 bytes)
                 # This could be "TEXT", "MODEL", or "DATA"
+
                 msg_type = conn.recv(10).decode().strip()
                 print(f"Recived message type: {msg_type}")
                 if not msg_type:
