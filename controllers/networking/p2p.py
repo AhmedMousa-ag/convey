@@ -110,7 +110,7 @@ class P2PNode:
     def _verify_secret_key(self, conn: socket.socket) -> bool:
         try:
             data = conn.recv(1024).decode()
-
+            print("Verification data received: ", data)
             auth_msg = AuthenticationMessage.model_validate_json(data)
             if auth_msg.secret_key == self.metadata_secrets.get(
                 auth_msg.hashed_metadata
@@ -132,6 +132,7 @@ class P2PNode:
             hashed_metadata=hashed_metadata,
             secret_key=self.metadata_secrets.get(hashed_metadata) or "",
         )
+        print("Will send secret key: ", auth_msg)
         # TODO you might consider sending the file length first.
         peer_socket.sendall(auth_msg.model_dump_json().encode())
 
