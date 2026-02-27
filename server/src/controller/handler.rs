@@ -31,13 +31,11 @@ async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {
             Some(Ok(msg)) = socket.recv() => {
                 match msg {
                     Message::Text(text) => {
-                        println!("Got text msg from client: {}\nMessage: {}", ip_add, text);
                         let client_msg_res = ServerMessage::decode_str(&text.to_string());
                         if let Ok(client_msg) = client_msg_res {
                             println!("Got a message type: {:?}", client_msg.msg_type);
                             match client_msg.message {
                                 ConveyMessage::ReqSubscribeTopic(subscribe) => {
-                                    println!("Got a subscribe request");
                                     let metadata = subscribe.hashed_metadata;
                                     add_meta_ip(&metadata, &ip_add).await;
                                     client_stored_metadata.push(metadata.clone());
@@ -61,7 +59,6 @@ async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {
                 }
             }
             Some(msg) = internal_reciver.recv() => {
-                println!("Will send a message: {:?}", msg);
                 if let Err(e) = socket.send(Message::Text(msg.into())).await {
                     dbg!("{:?}", e);
                 }
@@ -137,7 +134,6 @@ async fn inform_metadata_clients(metadata_hash: &str, curr_ip_address: &str, is_
             if &ip == curr_ip_address {
                 continue;
             }
-            println!("Sending updated ips to: {}", ip);
             let potential_sender = get_sender_channel(&ip).await;
             if let Some(sender) = potential_sender {
                 if let Err(e) = sender.send(msg_to_send.clone()) {
