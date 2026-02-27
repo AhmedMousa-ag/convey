@@ -51,6 +51,7 @@ class P2PNode:
         which is the root cause of 'several messages arriving at the same time'.
         Raises ConnectionError if the socket closes before n bytes arrive.
         """
+        print(f"Attempting to read exactly {n} bytes from socket")
         buf = bytearray()
         while len(buf) < n:
             chunk = conn.recv(n - len(buf))
@@ -65,6 +66,7 @@ class P2PNode:
         Wire format:  [4-byte big-endian length][payload bytes]
         Guarantees that exactly one logical message is returned per call.
         """
+        print("Waiting to receive framed message (4-byte length prefix)")
         length_bytes = self.recv_exact(conn, 4)
         length = int.from_bytes(length_bytes, byteorder="big")
         return self.recv_exact(conn, length)
@@ -120,12 +122,12 @@ class P2PNode:
         self.peers.add(addr)
         try:
             # --- Authenticate once per connection ---
-            if not self._verify_secret_key(conn):
-                print(f"Authentication failed for {addr}. Closing connection.")
-                self.close_conn(conn, addr)
-                return
 
             while True:
+                if not self._verify_secret_key(conn):
+                    print(f"Authentication failed for {addr}. Closing connection.")
+                    self.close_conn(conn, addr)
+                    return
                 # Receive the fixed 10-byte message-type header.
                 # recv_exact guarantees we always get exactly 10 bytes, even
                 # if TCP delivers them in multiple fragments.
@@ -292,7 +294,7 @@ class P2PNode:
         the next message.
         """
         print(f"Will send p2p message: {message}")
-        # self._send_secret_key(peer_socket, hashed_metadata)
+        self._send_secret_key(peer_socket, hashed_metadata)
         peer_socket.sendall(b"TEXT".ljust(10))
         self.send_framed(peer_socket, message.encode())
 
