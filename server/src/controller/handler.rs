@@ -67,11 +67,14 @@ async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {
         }
     }
     // If reached here, the connection is closed.
-    for mtdata in client_stored_metadata {
-        remove_meta_ip(&mtdata).await;
-        inform_metadata_clients(&mtdata, &ip_add, false).await;
-    }
     remover_sender_chan(&ip_add).await;
+    // Run it in another thread in case the client connects again before the cleanup is done.
+    tokio::spawn(async move {
+        for mtdata in client_stored_metadata {
+            remove_meta_ip(&mtdata).await;
+            inform_metadata_clients(&mtdata, &ip_add, false).await;
+        }
+    });
 }
 
 async fn inform_self_metadata_clients(metadata_hash: &str, curr_ip_address: &str) {
