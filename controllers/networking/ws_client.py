@@ -24,11 +24,12 @@ async def read_handler(websocket):
                     # If the message type is for changing the secret key
                     if msg_type == MessagesTypes.ChangeSecret.value:
                         secret_data = SecretMetadataKey(**msg_data)
+                        print("Server: Recieved secret change request: ", secret_data)
                         # Update the secret key in the p2p node
                         p2p_node.update_secret(
-                            secret_data.hashed_metadata, secret_data.new_secret
+                            hashed_metadata=secret_data.hashed_metadata,
+                            secret=secret_data.new_secret,
                         )
-                        print(f"Updated secret for {secret_data.hashed_metadata}")
                     elif msg_type == MessagesTypes.SUBSCRIBE.value:
                         # If the message type is for subscribing to a topic
                         print("Got subscribe message from server................")

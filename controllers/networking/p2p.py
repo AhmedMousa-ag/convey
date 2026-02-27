@@ -20,15 +20,6 @@ from models.clients import AuthenticationMessage
 
 
 class P2PNode:
-    """Shared state, #TODO you might consider it.
-    _shared = {}
-
-    def __new__(cls, *args, **kwargs):
-        obj = super().__new__(cls, *args, **kwargs)
-        obj.__dict__ = cls._shared
-        return obj
-    """
-
     # Singleton pattern
     def __new__(cls):
         if not hasattr(cls, "inst"):
@@ -36,6 +27,11 @@ class P2PNode:
         return cls.inst
 
     def __init__(self):
+        # Guard against re-initialization on singleton re-use
+        if hasattr(self, "_initialized"):
+            return
+        self._initialized = True
+
         self.host = CLIENT_HOST
         self.port = CLIENT_PORT
         self.peers = set()
@@ -44,53 +40,135 @@ class P2PNode:
         self.server.listen(5)
         self.serializer = MessageSerializer()
 
-        # TODO probably you should split secret manager to apply SOLID Principles.
         # Hashed Metadata and the reflected secret key.
         self.metadata_secrets: Dict[str, str] = {}
         print(f"P2P node listening on {self.host}:{self.port}")
+
+    def recv_exact(self, conn: socket.socket, n: int) -> bytes:
+        """
+        Read *exactly* n bytes from the socket.
+        Loops internally to handle partial reads that TCP may deliver,
+        which is the root cause of 'several messages arriving at the same time'.
+        Raises ConnectionError if the socket closes before n bytes arrive.
+        """
+        print(f"Attempting to read exactly {n} bytes from socket")
+        buf = bytearray()
+        while len(buf) < n:
+            chunk = conn.recv(n - len(buf))
+            if not chunk:
+                raise ConnectionError("Socket closed before all bytes were received")
+            buf.extend(chunk)
+        return bytes(buf)
+
+    def recv_framed(self, conn: socket.socket) -> bytes:
+        """
+        Receive a length-prefixed message.
+        Wire format:  [4-byte big-endian length][payload bytes]
+        Guarantees that exactly one logical message is returned per call.
+        """
+        print("Waiting to receive framed message (4-byte length prefix)")
+        length_bytes = self.recv_exact(conn, 4)
+        length = int.from_bytes(length_bytes, byteorder="big")
+        return self.recv_exact(conn, length)
+
+    def send_framed(self, conn: socket.socket, data: bytes):
+        """
+        Send data with a 4-byte big-endian length prefix so the receiver
+        knows exactly how many bytes to read for this message.
+        """
+        conn.sendall(len(data).to_bytes(4, byteorder="big") + data)
 
     def update_secret(self, hashed_metadata: str, secret: str):
         print("Will update secret")
         self.metadata_secrets[hashed_metadata] = secret
 
+    def _verify_secret_key(self, conn: socket.socket) -> bool:
+        """
+        Receive and validate the authentication message from the peer.
+        Uses recv_framed so the auth JSON never bleeds into the next recv.
+        """
+        try:
+            data = self.recv_framed(conn)
+            auth_msg = AuthenticationMessage.model_validate_json(data)
+            print(f"Received authentication message: {auth_msg}")
+            received_secret = auth_msg.secret_key
+            existing_secret = self.metadata_secrets.get(auth_msg.hashed_metadata)
+            if received_secret == existing_secret:
+                print("Secret verified.")
+                return True
+            print(
+                f"Couldn't verify secret — received: {received_secret}, "
+                f"expected: {existing_secret}"
+            )
+            return False
+        except Exception as e:
+            print(f"Error verifying secret: {e}")
+            return False
+
+    def _send_secret_key(self, peer_socket: socket.socket, hashed_metadata: str):
+        """
+        Send the secret key to the peer for authentication before each transmission.
+        Uses send_framed so the auth JSON is length-prefixed and never merges
+        with the message-type header that follows immediately.
+        """
+        auth_msg = AuthenticationMessage(
+            hashed_metadata=hashed_metadata,
+            secret_key=self.metadata_secrets.get(hashed_metadata) or "",
+        )
+        self.send_framed(peer_socket, auth_msg.model_dump_json().encode())
+
     def handle_peer(self, conn: socket.socket, addr):
         print(f"Connected by {addr}")
         self.peers.add(addr)
         try:
+            # --- Authenticate once per connection ---
+
             while True:
-
-                # Recieve the secret first
                 if not self._verify_secret_key(conn):
+                    print(f"Authentication failed for {addr}. Closing connection.")
                     self.close_conn(conn, addr)
+                    return
+                # Receive the fixed 10-byte message-type header.
+                # recv_exact guarantees we always get exactly 10 bytes, even
+                # if TCP delivers them in multiple fragments.
+                try:
+                    msg_type_raw = self.recv_exact(conn, 10)
+                except ConnectionError:
+                    print(f"Connection closed by {addr}")
+                    break
 
-                # First, receive the message type (fixed 10 bytes)
-                # This could be "TEXT", "MODEL", or "DATA"
-                msg_type = conn.recv(10).decode().strip()
-                print(f"Recived message type: {msg_type}")
+                msg_type = msg_type_raw.decode().strip()
+                print(f"Received message type: {msg_type}")
+
                 if not msg_type:
                     break
 
-                # Check if the message type corresponds to a file transfer
                 if msg_type in ["MODEL", "DATA"]:
                     self._receive_file(conn, addr, file_type=msg_type)
 
                 elif msg_type == "TEXT":
-                    data = conn.recv(1024)
+                    # recv_framed reads the exact number of bytes that the
+                    # sender wrote — no partial reads, no merged messages.
+                    try:
+                        data = self.recv_framed(conn)
+                    except ConnectionError:
+                        print(f"Connection closed by {addr} while reading TEXT body")
+                        break
+
                     if not data:
                         break
                     print(f"Received from {addr}: {data.decode()}")
-                    hashed_metadata, msg_type, message = self.serializer.receive_msg(
-                        data.decode()
+                    hashed_metadata, msg_type_inner, message = (
+                        self.serializer.receive_msg(data.decode())
                     )
                     transmitter = TransmitterManager(
                         hashed_metadata, peer_address=addr, p2p_node=self
                     )
-                    reply_data = transmitter.reply(msg_type=msg_type, msg=message)
+                    reply_data = transmitter.reply(msg_type=msg_type_inner, msg=message)
                     if reply_data is None:
                         continue
                     conn.sendall(reply_data.encode())
                 else:
-                    # Unknown header type
                     print(f"Unknown message type received: {msg_type}")
                     break
         finally:
@@ -102,52 +180,25 @@ class P2PNode:
             self.peers.remove(addr)
         print(f"Disconnected {addr}")
 
-    def _verify_secret_key(self, conn: socket.socket) -> bool:
-        try:
-            data = conn.recv(1024).decode()
-
-            auth_msg = AuthenticationMessage.model_validate_json(data)
-            if auth_msg.secret_key == self.metadata_secrets.get(
-                auth_msg.hashed_metadata
-            ):
-                print("Secret verified.")
-                return True
-            print("Couldn't verify secret")
-            return False
-        except Exception as e:
-            print(f"Error verifying secret: {e}")
-            return False
-
-    def _send_secret_key(self, peer_socket: socket.socket, hashed_metadata: str):
-        """
-        Send the secret key to the peer for authentication before each transmission.
-        Returns True if authentication succeeds, False otherwise.
-        """
-        auth_msg = AuthenticationMessage(
-            hashed_metadata=hashed_metadata,
-            secret_key=self.metadata_secrets.get(hashed_metadata) or "",
-        )
-        # TODO you might consider sending the file length first.
-        peer_socket.sendall(auth_msg.model_dump_json().encode())
-
     def _receive_file(self, conn, addr, file_type):
         """
-        Receives a file and saves it to the appropriate directory based on file_type.
+        Receives a file and saves it to the appropriate directory.
+        All fixed-size fields use recv_exact to prevent boundary issues.
         """
-        # Receive filename length and filename
-        filename_len_data = conn.recv(4)
-        if not filename_len_data:
-            return
-        print("Will recieve file.")
-        filename_len = int.from_bytes(filename_len_data, byteorder="big")
-        filename = conn.recv(filename_len).decode()
+        try:
+            # Filename length (4 bytes) + filename
+            filename_len = int.from_bytes(self.recv_exact(conn, 4), byteorder="big")
+            filename = self.recv_exact(conn, filename_len).decode()
 
-        # Receive file size
-        filesize = int.from_bytes(conn.recv(8), byteorder="big")
+            # File size (8 bytes)
+            filesize = int.from_bytes(self.recv_exact(conn, 8), byteorder="big")
+        except ConnectionError as e:
+            print(f"Error reading file metadata from {addr}: {e}")
+            return
 
         print(f"Receiving {file_type} '{filename}' ({filesize} bytes) from {addr}")
 
-        # Determine destination directory based on file_type
+        # Determine destination directory
         if file_type == "MODEL":
             save_dir = MODELS_DIR
         elif file_type == "DATA":
@@ -157,13 +208,14 @@ class P2PNode:
         else:
             save_dir = "received_files"
 
-        # Create directory if it doesn't exist
         os.makedirs(save_dir, exist_ok=True)
         temp_dire = os.path.join(ZIPPED_DIRE, "temp")
         os.makedirs(temp_dire, exist_ok=True)
+
         filepath = os.path.join(save_dir, filename)
         zip_path = os.path.join(ZIPPED_DIRE, filename)
-        # Receive and write file data
+
+        # Receive file data in chunks until exactly filesize bytes are read
         received = 0
         with open(zip_path, "wb") as f:
             while received < filesize:
@@ -172,38 +224,39 @@ class P2PNode:
                     break
                 f.write(chunk)
                 received += len(chunk)
+
         with zipfile.ZipFile(zip_path, "r") as zip_ref:
             print("Will unzip folder")
             if file_type == "MODEL":
-
                 zip_ref.extractall(temp_dire)
                 print(
-                    f"Files extracted to {temp_dire} before checking and moving to {save_dir}"
+                    f"Files extracted to {temp_dire} before checking and "
+                    f"moving to {save_dir}"
                 )
-                # Extract the metadata file from  the file name and load the
-                model_name = filename.rsplit(".", 1)[0]  # Remove .zip extension
+                model_name = filename.rsplit(".", 1)[0]
                 metadata_path = os.path.join(METADATA_PATH, f"{model_name}.json")
                 metadata = MetadataConfig.parse_file(metadata_path)
                 if ModelVerifier(metadata).is_better_model(temp_dire):
                     shutil.move(temp_dire, save_dir)
                     print(
-                        f"Model '{filename}' from {addr} is better than the current model."
+                        f"Model '{filename}' from {addr} is better than the "
+                        f"current model."
                     )
                 else:
                     print(
-                        f"Received model from {addr} is not better than the current model. Discarding."
+                        f"Received model from {addr} is not better than the "
+                        f"current model. Discarding."
                     )
             else:
                 zip_ref.extractall(save_dir)
-                print(
-                    f"Files extracted to {save_dir} before checking and moving to {save_dir}"
-                )
+                print(f"Files extracted to {save_dir}")
 
         print(
-            f"{file_type} '{filename}' received successfully ({received} bytes) at {filepath}"
+            f"{file_type} '{filename}' received successfully "
+            f"({received} bytes) at {filepath}"
         )
 
-        # Send acknowledgment
+        # Acknowledge receipt
         conn.sendall(b"ACK")
 
     def start_server(self):
@@ -225,58 +278,82 @@ class P2PNode:
     def send_message(
         self,
         peer_socket: socket.socket,
-        message,
+        message: str,
         hashed_metadata: str,
     ):
+        """
+        Send a TEXT message.
+
+        Wire format per connection (auth sent once at connection open):
+            [framed auth JSON]
+            [10-byte msg type header]
+            [framed message payload]
+
+        Using send_framed for the payload ensures the receiver's recv_framed
+        call reads exactly the right number of bytes and doesn't bleed into
+        the next message.
+        """
         print(f"Will send p2p message: {message}")
         self._send_secret_key(peer_socket, hashed_metadata)
         peer_socket.sendall(b"TEXT".ljust(10))
-        peer_socket.sendall(message.encode())
+        self.send_framed(peer_socket, message.encode())
 
     def send_file(
         self,
         peer_socket: socket.socket,
-        filepath,
+        filepath: str,
         hashed_metadata: str,
-        file_type="MODEL",
-    ):
+        file_type: str = "MODEL",
+    ) -> bool:
         """
-        Send a file to a connected peer with a specific type (MODEL or DATA).
+        Send a file to a connected peer.
+
+        Wire format:
+            [framed auth JSON]
+            [10-byte file_type header]
+            [4-byte filename length]
+            [filename bytes]
+            [8-byte file size]
+            [raw file bytes]
         """
         if not os.path.exists(filepath):
             print(f"Error: File '{filepath}' not found")
             return False
-        # print(f"Will send file: {filepath}")
+
         filename = os.path.basename(filepath)
+
+        # Zip directory if needed
         if os.path.isdir(filepath) and not filepath.endswith(".zip"):
             zip_name = f"{filename}.zip"
             filename = zip_name
             zip_path = os.path.join(ZIPPED_DIRE, zip_name)
             self.__zip_folder(filepath, zip_path)
+            filepath = zip_path
 
-        # Ensure file_type is valid (Optional validation depending on your strictness)
         if file_type not in ["MODEL", "DATA", "STATIC_MODULES"]:
             raise ValueError(
-                f"Invalid file type '{file_type}'. Must be 'MODEL', 'STATIC_MODULES', or 'DATA'."
+                f"Invalid file type '{file_type}'. "
+                f"Must be 'MODEL', 'STATIC_MODULES', or 'DATA'."
             )
-        print("Will send file type: ", file_type)
-        filesize = os.path.getsize(filepath)
 
+        filesize = os.path.getsize(filepath)
         print(f"Sending {file_type} '{filename}' ({filesize} bytes)")
-        self._send_secret_key(peer_socket, hashed_metadata)
-        # 1. Send message type (padded to 10 bytes).
-        # We send "MODEL" or "DATA" directly, not "FILE/"
+
+        # # Auth (framed so it never merges with the header bytes that follow)
+        # self._send_secret_key(peer_socket, hashed_metadata)
+
+        # 1. Message type header (fixed 10 bytes)
         peer_socket.sendall(file_type.ljust(10).encode())
 
-        # 2. Send filename length and filename.
+        # 2. Filename length + filename
         filename_bytes = filename.encode()
         peer_socket.sendall(len(filename_bytes).to_bytes(4, byteorder="big"))
         peer_socket.sendall(filename_bytes)
 
-        # 3. Send file size.
+        # 3. File size
         peer_socket.sendall(filesize.to_bytes(8, byteorder="big"))
 
-        # 4. Send file data in chunks.
+        # 4. File data
         sent = 0
         with open(filepath, "rb") as f:
             while sent < filesize:
@@ -288,8 +365,13 @@ class P2PNode:
 
         print(f"File sent: {sent} bytes")
 
-        # 5. Wait for acknowledgment.
-        ack = peer_socket.recv(3)
+        # 5. Wait for ACK
+        try:
+            ack = self.recv_exact(peer_socket, 3)
+        except ConnectionError:
+            print("Connection closed before ACK was received")
+            return False
+
         if ack == b"ACK":
             print("File transfer confirmed by peer")
             return True
@@ -297,18 +379,13 @@ class P2PNode:
             print("File transfer acknowledgment not received")
             return False
 
-    def __zip_folder(self, filepath, zip_path):
+    def __zip_folder(self, filepath: str, zip_path: str):
         print("Will zip folder")
         with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
-            # 2. Use os.walk to catch all files in subdirectories
             for root, _, files in os.walk(filepath):
                 for file in files:
-                    # Create the full path to the file on disk
                     full_path = os.path.join(root, file)
-
-                    # This ensures the zip structure matches the folder structure
                     rel_path = os.path.relpath(full_path, start=filepath)
-
                     zipf.write(full_path, arcname=rel_path)
 
 

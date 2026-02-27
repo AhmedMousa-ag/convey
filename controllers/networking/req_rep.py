@@ -1,6 +1,4 @@
 from configs.metadata import MetadataConfig
-
-# from controllers.networking.p2p import p2p_node
 from controllers.networking.pool import get_connection_p2p_pool, get_socket_connection
 import random
 from socket import socket
@@ -19,7 +17,6 @@ from models.fallback import FileMsg, StringMsg
 from controllers.networking.messages_fallback import FallbacksManager
 import time
 from threading import Thread
-import copy
 
 
 class BaseReqRepl:
@@ -95,9 +92,7 @@ class BaseReqRepl:
                     self.fallback_mng.remove_fallback_message(hashed_metadata, message)
                     if isinstance(message, StringMsg):
                         list_ip_addresses = get_connection_p2p_pool(hashed_metadata)
-                        print("List of addresses: ", list_ip_addresses)
-                        print(
-                            "Success sending message: ",
+                        _ = (
                             self._send_msg_rdnm_conn(
                                 msg=message.msg,
                                 list_of_address=list_ip_addresses,
@@ -105,14 +100,15 @@ class BaseReqRepl:
                         )
 
                     elif isinstance(message, FileMsg):
-                        print(
-                            "Success sending file: ",
+
+                        _ = (
                             self._send_file(
                                 ip=message.ip,
                                 file_path=message.file_path,
                                 file_type=message.file_type,
                             ),
                         )
+
                     else:
                         print(
                             f"Warning: message type {type(message)} is not supported yet."

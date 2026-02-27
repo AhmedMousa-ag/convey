@@ -25,8 +25,11 @@ class FallbacksManager:
         file_path: str,
         file_type: str,
     ):
+        print(
+            f"Registering fallback file: hashed_metadata={hashed_metadata}, ip={ip}, file_path={file_path}, file_type={file_type}"
+        )
         fall_back_messages.messages.setdefault(hashed_metadata, []).append(
-            FileMsg(file_path=file_path, file_type=file_type, ip=ip)
+            FileMsg(file_path=file_path, file_type=file_type, ip=str(ip))
         )
 
     def get_pending_messages(self) -> FallbackMessages:

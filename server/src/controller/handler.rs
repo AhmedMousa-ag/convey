@@ -31,18 +31,17 @@ async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {
             Some(Ok(msg)) = socket.recv() => {
                 match msg {
                     Message::Text(text) => {
-                        println!("Got text msg from client: {}\nMessage: {}", ip_add, text);
                         let client_msg_res = ServerMessage::decode_str(&text.to_string());
                         if let Ok(client_msg) = client_msg_res {
                             println!("Got a message type: {:?}", client_msg.msg_type);
                             match client_msg.message {
                                 ConveyMessage::ReqSubscribeTopic(subscribe) => {
-                                    println!("Got a subscribe request");
                                     let metadata = subscribe.hashed_metadata;
                                     add_meta_ip(&metadata, &ip_add).await;
                                     client_stored_metadata.push(metadata.clone());
-                                    inform_metadata_clients(&metadata, &ip_add, true).await;
                                     inform_self_metadata_clients(&metadata, &ip_add).await;
+                                    inform_metadata_clients(&metadata, &ip_add, true).await;
+
                                 },
                                 _ => {
                                     println!("Got un supported message from client... Will Ignore it\nMessage: {:?}", client_msg.message);
@@ -60,7 +59,6 @@ async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {
                 }
             }
             Some(msg) = internal_reciver.recv() => {
-                println!("Will send a message: {:?}", msg);
                 if let Err(e) = socket.send(Message::Text(msg.into())).await {
                     dbg!("{:?}", e);
                 }
@@ -69,11 +67,14 @@ async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {
         }
     }
     // If reached here, the connection is closed.
-    for mtdata in client_stored_metadata {
-        remove_meta_ip(&mtdata).await;
-        inform_metadata_clients(&mtdata, &ip_add, false).await;
-    }
     remover_sender_chan(&ip_add).await;
+    // Run it in another thread in case the client connects again before the cleanup is done.
+    tokio::spawn(async move {
+        for mtdata in client_stored_metadata {
+            remove_meta_ip(&mtdata).await;
+            inform_metadata_clients(&mtdata, &ip_add, false).await;
+        }
+    });
 }
 
 async fn inform_self_metadata_clients(metadata_hash: &str, curr_ip_address: &str) {
@@ -88,6 +89,20 @@ async fn inform_self_metadata_clients(metadata_hash: &str, curr_ip_address: &str
 
     for ip in all_ips {
         if ip == curr_ip_address {
+            // Send secret key to self as well, then continue to next ip without sending the subscribe message.
+            let secret_key = get_metadata_secret_key(metadata_hash)
+                .await
+                .unwrap_or(generate_secret_key(metadata_hash).await);
+            let secret_msg = ServerMessage {
+                msg_type: MessagesTypes::ChangeSecret,
+                message: ConveyMessage::SecretMetadataKey(SecretMetadataKey {
+                    hashed_metadata: metadata_hash.to_string(),
+                    new_secret: secret_key.clone(),
+                }),
+            };
+            if let Err(e) = sender.send(serde_json::to_string(&secret_msg).unwrap_or_default()) {
+                println!("Error sending secret key internal channel: {}", e);
+            }
             continue;
         }
         let msg_to_send_res = serde_json::to_string(&ServerMessage {
@@ -109,10 +124,6 @@ async fn inform_self_metadata_clients(metadata_hash: &str, curr_ip_address: &str
 /// Informs all clients of each other.
 async fn inform_metadata_clients(metadata_hash: &str, curr_ip_address: &str, is_adding: bool) {
     let all_ips = get_meta_ip_key(metadata_hash).await;
-    let secret_key = get_metadata_secret_key(metadata_hash)
-        .await
-        .unwrap_or(generate_secret_key(metadata_hash).await);
-
     let msg_to_send_res = serde_json::to_string(&ServerMessage {
         msg_type: MessagesTypes::Subscribe,
         message: ConveyMessage::SubscribeTopic(ClientsIPAddresses {
@@ -126,18 +137,8 @@ async fn inform_metadata_clients(metadata_hash: &str, curr_ip_address: &str, is_
             if &ip == curr_ip_address {
                 continue;
             }
-            println!("Sending updated ips to: {}", ip);
             let potential_sender = get_sender_channel(&ip).await;
             if let Some(sender) = potential_sender {
-                if let Err(e) = sender.send(
-                    serde_json::to_string(&SecretMetadataKey {
-                        hashed_metadata: metadata_hash.to_string(),
-                        new_secret: secret_key.clone(),
-                    })
-                    .unwrap_or_default(),
-                ) {
-                    println!("Error sending secret key internal channel: {}", e);
-                }
                 if let Err(e) = sender.send(msg_to_send.clone()) {
                     println!("Error sending internal channel: {}", e);
                 }
