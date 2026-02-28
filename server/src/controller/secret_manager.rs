@@ -29,7 +29,6 @@ pub async fn generate_secret_key(metadata: &str) -> String {
         uuid::Uuid::new_v4()
     );
     let metadata_new_secret = format!("{:x}", sha2::Sha256::digest(metadata_time_uuid.as_bytes()));
-    insert_metadata_secret_key(&metadata, &metadata_new_secret).await;
     metadata_new_secret
 }
 
@@ -38,9 +37,11 @@ async fn inform_metadata_clients_change_secret() {
     let meta_ips: HashMap<String, Vec<String>> = get_meta_ip_cloned().await;
     for (metadata, ips) in meta_ips {
         // Now let's hash265 the metadata_time_uuid to get the new secret.
-        let metadata_new_secret = get_metadata_secret_key(&metadata)
-            .await
-            .unwrap_or(generate_secret_key(&metadata).await);
+        let metadata_new_secret = get_metadata_secret_key(&metadata).await.unwrap_or({
+            let new_secret = generate_secret_key(&metadata).await;
+            insert_metadata_secret_key(&metadata, &new_secret).await;
+            new_secret
+        });
 
         let msg_to_send_res = serde_json::to_string(&ServerMessage {
             msg_type: MessagesTypes::ChangeSecret,
