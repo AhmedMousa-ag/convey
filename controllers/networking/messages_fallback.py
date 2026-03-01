@@ -1,8 +1,5 @@
-import asyncio
 from models.fallback import FallbackMessages, FileMsg, StringMsg
 
-sender = asyncio.Queue()
-receiver = asyncio.Queue()
 
 fall_back_messages: FallbackMessages = FallbackMessages(messages={})
 

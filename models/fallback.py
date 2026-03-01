@@ -12,10 +12,5 @@ class FileMsg(BaseModel):
     file_type: str
 
 
-# class Message(BaseModel):
-#     message = StringMsg | FileMsg
-
-
 class FallbackMessages(BaseModel):
-    # Hashed metadata
     messages: Dict[str, List[StringMsg | FileMsg]]
