@@ -4,6 +4,7 @@ use convey_server::{
     controller::{handler::handler, secret_manager::secret_change_interval},
 };
 use std::net::SocketAddr;
+
 #[tokio::main]
 async fn main() {
     let app = Router::new().route("/ws", get(handler));

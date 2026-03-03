@@ -1,6 +1,6 @@
 use crate::configs::pool::{
-    add_meta_ip, get_meta_ip_key, get_metadata_secret_key, get_sender_channel, insert_sender_chan,
-    remove_meta_ip, remover_sender_chan,
+    add_meta_ip, get_meta_ip_key, get_metadata_secret_key, get_sender_channel,
+    insert_metadata_secret_key, insert_sender_chan, remove_meta_ip, remover_sender_chan,
 };
 use crate::controller::secret_manager::generate_secret_key;
 use crate::models::models::{
@@ -90,9 +90,11 @@ async fn inform_self_metadata_clients(metadata_hash: &str, curr_ip_address: &str
     for ip in all_ips {
         if ip == curr_ip_address {
             // Send secret key to self as well, then continue to next ip without sending the subscribe message.
-            let secret_key = get_metadata_secret_key(metadata_hash)
-                .await
-                .unwrap_or(generate_secret_key(metadata_hash).await);
+            let secret_key = get_metadata_secret_key(metadata_hash).await.unwrap_or({
+                let new_secret = generate_secret_key(metadata_hash).await;
+                insert_metadata_secret_key(metadata_hash, &new_secret).await;
+                new_secret
+            });
             let secret_msg = ServerMessage {
                 msg_type: MessagesTypes::ChangeSecret,
                 message: ConveyMessage::SecretMetadataKey(SecretMetadataKey {
