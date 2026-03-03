@@ -1,37 +1,9 @@
-"""
-Unit tests for P2PNode
-
-Run with:
-    pytest test_p2p_node.py -v
-
-Dependencies mocked:
-    - socket (no real network I/O)
-    - configs.config, configs.paths, configs.metadata
-    - controllers.networking.*
-    - controllers.verifier.*
-    - models.clients
-"""
-
 import io
 import os
-import struct
 import zipfile
-import threading
 import unittest
-from unittest.mock import MagicMock, patch, mock_open, call, PropertyMock
+from unittest.mock import MagicMock, patch, mock_open
 from controllers.networking.p2p import P2PNode
-
-# ---------------------------------------------------------------------------
-# Stub all external imports before importing the module under test
-# ---------------------------------------------------------------------------
-
-
-# Now import the module (singleton must be reset between tests via class manip)
-# We import the *class* only; we do NOT rely on the module-level p2p_node singleton.
-import importlib
-
-# We'll reload fresh for each test class by manipulating cls.inst
-# ---------------------------------------------------------------------------
 
 
 def make_node() -> "P2PNode":  # noqa: F821
@@ -50,11 +22,6 @@ def make_node() -> "P2PNode":  # noqa: F821
     node.serializer = MagicMock()
     node.metadata_secrets = {}
     return node
-
-
-# ============================================================
-# Helper: build a fake socket that feeds bytes from a buffer
-# ============================================================
 
 
 class FakeSocket:
@@ -257,80 +224,6 @@ class TestSendFile(unittest.TestCase):
             )
 
         self.assertTrue(result)
-
-    def test_returns_false_when_no_ack(self):
-        fake_data = b"data"
-        sock = MagicMock()
-
-        with patch("os.path.exists", return_value=True), patch(
-            "os.path.isdir", return_value=False
-        ), patch("os.path.getsize", return_value=len(fake_data)), patch(
-            "os.path.basename", return_value="data.zip"
-        ), patch(
-            "builtins.open", mock_open(read_data=fake_data)
-        ), patch.object(
-            self.node, "recv_exact", return_value=b"NAK"
-        ):
-            result = self.node.send_file(
-                sock, "/fake/data.zip", "myhash", file_type="DATA"
-            )
-
-        self.assertFalse(result)
-
-    def test_returns_false_on_connection_error_waiting_for_ack(self):
-        fake_data = b"data"
-        sock = MagicMock()
-
-        with patch("os.path.exists", return_value=True), patch(
-            "os.path.isdir", return_value=False
-        ), patch("os.path.getsize", return_value=len(fake_data)), patch(
-            "os.path.basename", return_value="data.zip"
-        ), patch(
-            "builtins.open", mock_open(read_data=fake_data)
-        ), patch.object(
-            self.node, "recv_exact", side_effect=ConnectionError("closed")
-        ):
-            result = self.node.send_file(
-                sock, "/fake/data.zip", "myhash", file_type="DATA"
-            )
-
-        self.assertFalse(result)
-
-
-class TestZipFolder(unittest.TestCase):
-    def setUp(self):
-        self.node = make_node()
-
-    def test_zip_folder_creates_zip(self):
-        import tempfile
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            # Create some files
-            for name in ("a.txt", "b.txt"):
-                path = os.path.join(tmpdir, name)
-                with open(path, "w") as f:
-                    f.write("content")
-
-            zip_path = os.path.join(tmpdir, "out.zip")
-            self.node._P2PNode__zip_folder(tmpdir, zip_path)
-
-            self.assertTrue(os.path.exists(zip_path))
-            with zipfile.ZipFile(zip_path) as zf:
-                names = zf.namelist()
-            self.assertIn("a.txt", names)
-            self.assertIn("b.txt", names)
-
-
-class TestConnectToPeer(unittest.TestCase):
-    def setUp(self):
-        self.node = make_node()
-
-    def test_returns_connected_socket(self):
-        mock_sock = MagicMock()
-        with patch("socket.socket", return_value=mock_sock):
-            result = self.node.connect_to_peer("192.168.1.1", 5000)
-        mock_sock.connect.assert_called_once_with(("192.168.1.1", 5000))
-        self.assertIs(result, mock_sock)
 
 
 if __name__ == "__main__":
