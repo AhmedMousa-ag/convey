@@ -143,7 +143,7 @@ class P2PNode:
                 if not msg_type:
                     break
 
-                if msg_type in ["MODEL", "DATA"]:
+                if msg_type in ["MODEL", "DATA", "STATIC_MODULES"]:
                     self._receive_file(conn, addr, file_type=msg_type)
 
                 elif msg_type == "TEXT":
@@ -344,7 +344,7 @@ class P2PNode:
 
         # 1. Message type header (fixed 10 bytes)
         peer_socket.sendall(file_type.ljust(10).encode())
-
+        print(f"Sent file type header: '{file_type}'")
         # 2. Filename length + filename
         filename_bytes = filename.encode()
         peer_socket.sendall(len(filename_bytes).to_bytes(4, byteorder="big"))

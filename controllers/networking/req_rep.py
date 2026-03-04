@@ -54,6 +54,9 @@ class BaseReqRepl:
         return True
 
     def _send_file(self, ip: str, file_path: str, file_type: str = "MODEL") -> bool:
+        print(
+            f"Requester: Trying to send file to {ip} with path {file_path} and type {file_type}"
+        )
         conn = get_socket_connection(ip=ip)
         if conn is None:
             self.fallback_mng.register_file(
