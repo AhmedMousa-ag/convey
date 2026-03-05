@@ -56,7 +56,7 @@ class ModelVerifier:
         # Check if the file exists or not
         if not os.path.exists(self.metadata.weights_path):
             print("No existing weights to verify against. Accepting new model.")
-
+            return True
         else:
             # Move the new weights file to the a temporary location in the models directory.
             temp_weights_path = os.path.join(
