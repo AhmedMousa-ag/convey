@@ -1,5 +1,4 @@
 import socket
-from socket import _RetAddress
 import threading
 import os
 from configs.config import CLIENT_PORT, CLIENT_HOST
@@ -118,7 +117,7 @@ class P2PNode:
         )
         self.send_framed(peer_socket, auth_msg.model_dump_json().encode())
 
-    def handle_peer(self, conn: socket.socket, addr: _RetAddress):
+    def handle_peer(self, conn: socket.socket, addr):
         print(f"Connected by {addr}")
         self.peers.add(addr)
         try:
