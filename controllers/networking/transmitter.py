@@ -5,11 +5,6 @@ from controllers.networking.req_rep import Requester, Replier
 from models.clients import ResponseIsLatestModel
 from controllers.verifier.update_verifier import DateVerifier
 
-# TODO
-# Upon socket connection, ask to see if this client is synced with the recent version or not.
-# If doesn't have the recent version, send it to the client.
-# Create a button for updating a better version for everyone. The current client verifies it themselves first on the test data, and if success, send it to everyone so that they confirm and replace.
-
 
 class TransmitterManager:
     def __init__(self, hashed_metadata: str, peer_address: str, p2p_node):
@@ -18,6 +13,7 @@ class TransmitterManager:
         )
         self.requester = Requester(self.metadata, p2p_node)
         self.replier = Replier(self.metadata, p2p_node)
+        print("WIll store peer address: ", peer_address)
         self.peer_address = peer_address
 
     def reply(self, msg_type: P2PMessagesTypes, msg: Dict) -> str | None:

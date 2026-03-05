@@ -59,6 +59,7 @@ class BaseReqRepl:
         )
         conn = get_socket_connection(ip=ip)
         if conn is None:
+            print("Connection is None, registering fallback file.")
             self.fallback_mng.register_file(
                 self.metadata.hash_self(), ip, file_path, file_type
             )

@@ -1,4 +1,5 @@
 import socket
+from socket import _RetAddress
 import threading
 import os
 from configs.config import CLIENT_PORT, CLIENT_HOST
@@ -117,7 +118,7 @@ class P2PNode:
         )
         self.send_framed(peer_socket, auth_msg.model_dump_json().encode())
 
-    def handle_peer(self, conn: socket.socket, addr):
+    def handle_peer(self, conn: socket.socket, addr: _RetAddress):
         print(f"Connected by {addr}")
         self.peers.add(addr)
         try:
@@ -162,7 +163,10 @@ class P2PNode:
                         self.serializer.receive_msg(data.decode())
                     )
                     transmitter = TransmitterManager(
-                        hashed_metadata, peer_address=addr, p2p_node=self
+                        # Pass the ip address only without the port.
+                        hashed_metadata,
+                        peer_address=addr[0],
+                        p2p_node=self,
                     )
                     reply_data = transmitter.reply(msg_type=msg_type_inner, msg=message)
                     if reply_data is None:
