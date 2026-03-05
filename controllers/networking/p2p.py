@@ -141,9 +141,11 @@ class P2PNode:
                 print(f"Received message type: {msg_type}")
 
                 if not msg_type:
+                    print(f"No message type received from {addr}. Closing connection.")
                     break
 
                 if msg_type in ["MODEL", "DATA", "STATIC_MODULES"]:
+                    print(f"Will receive file of type {msg_type} from {addr}")
                     self._receive_file(conn, addr, file_type=msg_type)
 
                 elif msg_type == "TEXT":
@@ -297,7 +299,6 @@ class P2PNode:
         call reads exactly the right number of bytes and doesn't bleed into
         the next message.
         """
-        print(f"Will send p2p message: {message}")
         self._send_secret_key(peer_socket, hashed_metadata)
         peer_socket.sendall(b"TEXT".ljust(10))
         self.send_framed(peer_socket, message.encode())
