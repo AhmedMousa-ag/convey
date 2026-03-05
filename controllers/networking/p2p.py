@@ -15,7 +15,7 @@ from controllers.networking.transmitter import TransmitterManager
 from configs.metadata import MetadataConfig
 import shutil
 from controllers.verifier.update_verifier import ModelVerifier
-from typing import Dict
+from typing import Dict, Tuple
 from models.clients import AuthenticationMessage
 
 
@@ -79,10 +79,9 @@ class P2PNode:
         conn.sendall(len(data).to_bytes(4, byteorder="big") + data)
 
     def update_secret(self, hashed_metadata: str, secret: str):
-        print("Will update secret")
         self.metadata_secrets[hashed_metadata] = secret
 
-    def _verify_secret_key(self, conn: socket.socket) -> bool:
+    def _verify_secret_key(self, conn: socket.socket) -> Tuple[bool, str]:
         """
         Receive and validate the authentication message from the peer.
         Uses recv_framed so the auth JSON never bleeds into the next recv.
@@ -95,15 +94,15 @@ class P2PNode:
             existing_secret = self.metadata_secrets.get(auth_msg.hashed_metadata)
             if received_secret == existing_secret:
                 print("Secret verified.")
-                return True
+                return True, auth_msg.hashed_metadata
             print(
                 f"Couldn't verify secret — received: {received_secret}, "
                 f"expected: {existing_secret}"
             )
-            return False
+            return False, auth_msg.hashed_metadata
         except Exception as e:
             print(f"Error verifying secret: {e}")
-            return False
+            return False, auth_msg.hashed_metadata
 
     def _send_secret_key(self, peer_socket: socket.socket, hashed_metadata: str):
         """
@@ -122,7 +121,8 @@ class P2PNode:
         self.peers.add(addr)
         try:
             while True:
-                if not self._verify_secret_key(conn):
+                is_verified, hashed_metadata = self._verify_secret_key(conn)
+                if not is_verified:
                     print(f"Authentication failed for {addr}. Closing connection.")
                     self.close_conn(conn, addr)
                     return
@@ -143,7 +143,13 @@ class P2PNode:
 
                 if msg_type in ["MODEL", "DATA", "STATIC_MODULES"]:
                     print(f"Will receive file of type {msg_type} from {addr}")
-                    self._receive_file(conn, addr, file_type=msg_type)
+
+                    self._receive_file(
+                        conn=conn,
+                        addr=addr,
+                        file_type=msg_type,
+                        hashed_metadata=hashed_metadata,
+                    )
 
                 elif msg_type == "TEXT":
                     try:
@@ -184,7 +190,7 @@ class P2PNode:
             self.peers.remove(addr)
         print(f"Disconnected {addr}")
 
-    def _receive_file(self, conn, addr, file_type):
+    def _receive_file(self, conn, addr, file_type, hashed_metadata):
         """
         Receives a file and saves it to the appropriate directory.
         All fixed-size fields use recv_exact to prevent boundary issues.
@@ -242,9 +248,7 @@ class P2PNode:
                     f"Files extracted to {temp_dire} before checking and "
                     f"moving to {save_dir}"
                 )
-                model_name = filename.rsplit(".", 1)[0]
-                metadata_path = os.path.join(METADATA_PATH, f"{model_name}.json")
-                metadata = MetadataConfig.parse_file(metadata_path)
+                metadata = MetadataConfig.load_from_hashed_val(hashed_metadata)
                 if ModelVerifier(metadata).is_better_model(temp_dire):
                     shutil.move(temp_dire, save_dir)
                     print(
