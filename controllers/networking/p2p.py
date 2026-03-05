@@ -150,6 +150,7 @@ class P2PNode:
                     # recv_framed reads the exact number of bytes that the
                     # sender wrote — no partial reads, no merged messages.
                     try:
+                        print("Receiving TEXT message body...")
                         data = self.recv_framed(conn)
                     except ConnectionError:
                         print(f"Connection closed by {addr} while reading TEXT body")
