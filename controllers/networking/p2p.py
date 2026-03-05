@@ -191,10 +191,12 @@ class P2PNode:
         try:
             # Filename length (4 bytes) + filename
             filename_len = int.from_bytes(self.recv_exact(conn, 4), byteorder="big")
+            print(f"Filename length: {filename_len} bytes")
             filename = self.recv_exact(conn, filename_len).decode()
-
+            print(f"Filename: {filename}")
             # File size (8 bytes)
             filesize = int.from_bytes(self.recv_exact(conn, 8), byteorder="big")
+            print(f"File size: {filesize} bytes")
         except ConnectionError as e:
             print(f"Error reading file metadata from {addr}: {e}")
             return
@@ -372,7 +374,7 @@ class P2PNode:
         except ConnectionError:
             print("Connection closed before ACK was received")
             return False
-
+        print(f"Received ACK: {ack}")
         if ack == b"ACK":
             print("File transfer confirmed by peer")
             return True
