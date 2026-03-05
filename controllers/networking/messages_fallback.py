@@ -22,9 +22,7 @@ class FallbacksManager:
         file_path: str,
         file_type: str,
     ):
-        print(
-            f"Registering fallback file: hashed_metadata={hashed_metadata}, ip={ip}, file_path={file_path}, file_type={file_type}"
-        )
+        print(f"Registering fallback file, file_type={file_type}")
         fall_back_messages.messages.setdefault(hashed_metadata, []).append(
             FileMsg(file_path=file_path, file_type=file_type, ip=str(ip))
         )
@@ -36,4 +34,4 @@ class FallbacksManager:
         try:
             fall_back_messages.messages.pop(hashed_metadata).remove(msg)
         except Exception as e:
-            print("Exception removing fallback messages: ", e)
+            print("Exception removing fallback messages: ")
