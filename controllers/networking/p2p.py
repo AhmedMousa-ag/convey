@@ -227,7 +227,8 @@ class P2PNode:
                     break
                 f.write(chunk)
                 received += len(chunk)
-
+        # Acknowledge receipt
+        conn.sendall(b"ACK")
         with zipfile.ZipFile(zip_path, "r") as zip_ref:
             print("Will unzip folder")
             if file_type == "MODEL":
@@ -258,9 +259,6 @@ class P2PNode:
             f"{file_type} '{filename}' received successfully "
             f"({received} bytes) at {filepath}"
         )
-
-        # Acknowledge receipt
-        conn.sendall(b"ACK")
 
     def start_server(self):
         def run():
