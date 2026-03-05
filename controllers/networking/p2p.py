@@ -121,16 +121,13 @@ class P2PNode:
         print(f"Connected by {addr}")
         self.peers.add(addr)
         try:
-            # --- Authenticate once per connection ---
-
             while True:
                 if not self._verify_secret_key(conn):
                     print(f"Authentication failed for {addr}. Closing connection.")
                     self.close_conn(conn, addr)
                     return
+
                 # Receive the fixed 10-byte message-type header.
-                # recv_exact guarantees we always get exactly 10 bytes, even
-                # if TCP delivers them in multiple fragments.
                 try:
                     msg_type_raw = self.recv_exact(conn, 10)
                 except ConnectionError:
@@ -149,8 +146,6 @@ class P2PNode:
                     self._receive_file(conn, addr, file_type=msg_type)
 
                 elif msg_type == "TEXT":
-                    # recv_framed reads the exact number of bytes that the
-                    # sender wrote — no partial reads, no merged messages.
                     try:
                         print("Receiving TEXT message body...")
                         data = self.recv_framed(conn)
@@ -165,7 +160,6 @@ class P2PNode:
                         self.serializer.receive_msg(data.decode())
                     )
                     transmitter = TransmitterManager(
-                        # Pass the ip address only without the port.
                         hashed_metadata,
                         peer_address=addr[0],
                         p2p_node=self,
@@ -173,7 +167,11 @@ class P2PNode:
                     reply_data = transmitter.reply(msg_type=msg_type_inner, msg=message)
                     if reply_data is None:
                         continue
-                    conn.sendall(reply_data.encode())
+                    # FIX 1: Use send_framed so the reply is length-prefixed.
+                    # Previously conn.sendall(reply_data.encode()) sent raw bytes,
+                    # causing the next recv_framed call to misread the reply
+                    # text as a 4-byte length prefix → garbage length → hang.
+                    self.send_framed(conn, reply_data.encode())
                 else:
                     print(f"Unknown message type received: {msg_type}")
                     break
@@ -232,8 +230,10 @@ class P2PNode:
                     break
                 f.write(chunk)
                 received += len(chunk)
+
         # Acknowledge receipt
         conn.sendall(b"ACK")
+
         with zipfile.ZipFile(zip_path, "r") as zip_ref:
             print("Will unzip folder")
             if file_type == "MODEL":
@@ -290,14 +290,10 @@ class P2PNode:
         """
         Send a TEXT message.
 
-        Wire format per connection (auth sent once at connection open):
+        Wire format per loop iteration (auth sent before every message):
             [framed auth JSON]
             [10-byte msg type header]
             [framed message payload]
-
-        Using send_framed for the payload ensures the receiver's recv_framed
-        call reads exactly the right number of bytes and doesn't bleed into
-        the next message.
         """
         self._send_secret_key(peer_socket, hashed_metadata)
         peer_socket.sendall(b"TEXT".ljust(10))
@@ -344,12 +340,16 @@ class P2PNode:
         filesize = os.path.getsize(filepath)
         print(f"Sending {file_type} '{filename}' ({filesize} bytes)")
 
-        # # Auth (framed so it never merges with the header bytes that follow)
-        # self._send_secret_key(peer_socket, hashed_metadata)
+        # FIX 2: Auth must be sent before every message since the receiver
+        # loop calls _verify_secret_key at the top of every iteration.
+        # Previously this was commented out, causing auth verification to
+        # read the file_type header bytes as the auth payload → failure.
+        self._send_secret_key(peer_socket, hashed_metadata)
 
         # 1. Message type header (fixed 10 bytes)
         peer_socket.sendall(file_type.ljust(10).encode())
         print(f"Sent file type header: '{file_type}'")
+
         # 2. Filename length + filename
         filename_bytes = filename.encode()
         peer_socket.sendall(len(filename_bytes).to_bytes(4, byteorder="big"))
