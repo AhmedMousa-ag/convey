@@ -141,7 +141,7 @@ class P2PNode:
                     print(f"No message type received from {addr}. Closing connection.")
                     break
 
-                if msg_type in ["MODEL", "DATA", "STATIC_MODULES"]:
+                if msg_type in ["MODEL", "DATA", "STATIC_MOD"]:
                     print(f"Will receive file of type {msg_type} from {addr}")
 
                     self._receive_file(
@@ -215,7 +215,7 @@ class P2PNode:
             save_dir = MODELS_DIR
         elif file_type == "DATA":
             save_dir = DATASETS_TEST_DIR
-        elif file_type == "STATIC_MODULES":
+        elif file_type == "STATIC_MOD":
             save_dir = STATIC_MODULES_PATH
         else:
             save_dir = "received_files"
@@ -335,10 +335,10 @@ class P2PNode:
             self.__zip_folder(filepath, zip_path)
             filepath = zip_path
 
-        if file_type not in ["MODEL", "DATA", "STATIC_MODULES"]:
+        if file_type not in ["MODEL", "DATA", "STATIC_MOD"]:
             raise ValueError(
                 f"Invalid file type '{file_type}'. "
-                f"Must be 'MODEL', 'STATIC_MODULES', or 'DATA'."
+                f"Must be 'MODEL', 'STATIC_MOD', or 'DATA'."
             )
 
         filesize = os.path.getsize(filepath)

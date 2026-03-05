@@ -204,5 +204,5 @@ class Replier(BaseReqRepl):
         return self._send_file(
             ip=ip,
             file_path=self.metadata.static_model_path,
-            file_type="STATIC_MODULES",
+            file_type="STATIC_MOD",
         )
