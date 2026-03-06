@@ -212,11 +212,11 @@ class P2PNode:
         metadata = MetadataConfig.load_from_hashed_val(hashed_metadata)
         # Determine destination directory
         if file_type == "MODEL":
-            save_dir = os.path.join(MODELS_DIR, metadata.model_obj_path)
+            save_dir = metadata.model_obj_path
         elif file_type == "DATA":
-            save_dir = os.path.join(DATASETS_TEST_DIR, metadata.dataset_path)
+            save_dir = metadata.dataset_path
         elif file_type == "STATIC_MOD":
-            save_dir = os.path.join(STATIC_MODULES_PATH, metadata.static_model_path)
+            save_dir = metadata.static_model_path
         else:
             # TODO maybe you should raise an error or something.
             save_dir = "received_files"
@@ -251,6 +251,7 @@ class P2PNode:
                 )
 
                 if ModelVerifier(metadata).is_better_model(temp_dire):
+                    # To /home/akm/.convey/models/my_model_slerp/model_1.pth
                     print(f"Will move from: {temp_dire} to {save_dir}")
 
                     def move_and_overwrite(source, destination):
