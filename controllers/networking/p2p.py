@@ -252,14 +252,16 @@ class P2PNode:
 
                 if ModelVerifier(metadata).is_better_model(temp_dire):
                     print(f"Will move from: {temp_dire} to {save_dir}")
-                    # Will move from: /home/akm/.convey/zipped_files/temp to /home/akm/.convey/models
-                    """
-                    raise Error("Destination path '%s' already exists" % real_dst)
-                    shutil.Error: Destination path '/home/akm/.convey/models/temp' already exists
-                    """
-                    # if os.path.exists(save_dir):
-                    #     shutil.rmtree(save_dir)
-                    shutil.move(temp_dire, save_dir)
+
+                    def move_and_overwrite(source, destination):
+                        if os.path.exists(destination):
+                            if os.path.isdir(destination):
+                                shutil.rmtree(destination)
+                            else:
+                                os.remove(destination)
+                        shutil.move(source, destination)
+
+                    move_and_overwrite(temp_dire, save_dir)
                     print(
                         f"Model '{filename}' from {addr} is better than the "
                         f"current model."
