@@ -209,19 +209,20 @@ class P2PNode:
             return
 
         print(f"Receiving {file_type} '{filename}' ({filesize} bytes) from {addr}")
-
+        metadata = MetadataConfig.load_from_hashed_val(hashed_metadata)
         # Determine destination directory
         if file_type == "MODEL":
-            save_dir = MODELS_DIR
+            save_dir = os.path.join(MODELS_DIR, metadata.model_obj_path)
         elif file_type == "DATA":
-            save_dir = DATASETS_TEST_DIR
+            save_dir = os.path.join(DATASETS_TEST_DIR, metadata.dataset_path)
         elif file_type == "STATIC_MOD":
-            save_dir = STATIC_MODULES_PATH
+            save_dir = os.path.join(STATIC_MODULES_PATH, metadata.static_model_path)
         else:
+            # TODO maybe you should raise an error or something.
             save_dir = "received_files"
 
         os.makedirs(save_dir, exist_ok=True)
-        temp_dire = os.path.join(ZIPPED_DIRE, "temp")
+        temp_dire = os.path.join(ZIPPED_DIRE, "temp", filename.split(".")[0])
         os.makedirs(temp_dire, exist_ok=True)
 
         filepath = os.path.join(save_dir, filename)
@@ -248,9 +249,14 @@ class P2PNode:
                     f"Files extracted to {temp_dire} before checking and "
                     f"moving to {save_dir}"
                 )
-                metadata = MetadataConfig.load_from_hashed_val(hashed_metadata)
+
                 if ModelVerifier(metadata).is_better_model(temp_dire):
                     print(f"Will move from: {temp_dire} to {save_dir}")
+                    # Will move from: /home/akm/.convey/zipped_files/temp to /home/akm/.convey/models
+                    """
+                    raise Error("Destination path '%s' already exists" % real_dst)
+                    shutil.Error: Destination path '/home/akm/.convey/models/temp' already exists
+                    """
                     # if os.path.exists(save_dir):
                     #     shutil.rmtree(save_dir)
                     shutil.move(temp_dire, save_dir)

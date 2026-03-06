@@ -69,8 +69,6 @@ def update_connection_p2p_pool(client_ip_address: ClientsIPAddresses, peer_conn)
                 p2p_socket_peer_conn.pop(ip)
                 remove_latest_ip_updated_models(client_ip_address.hashed_metadata, ip)
     connection_pool[client_ip_address.hashed_metadata] = metadata_pool_list
-    print(f"Connection Pool: {connection_pool}")
-    print(f"IP Socket: {p2p_socket_peer_conn}")
 
 
 def remove_connection_p2p_pool(hashed_metadata: str, ip: str):
