@@ -102,7 +102,7 @@ class P2PNode:
             return False, auth_msg.hashed_metadata
         except Exception as e:
             print(f"Error verifying secret: {e}")
-            return False, auth_msg.hashed_metadata
+            return False, ""
 
     def _send_secret_key(self, peer_socket: socket.socket, hashed_metadata: str):
         """
@@ -250,6 +250,9 @@ class P2PNode:
                 )
                 metadata = MetadataConfig.load_from_hashed_val(hashed_metadata)
                 if ModelVerifier(metadata).is_better_model(temp_dire):
+                    print(f"Will move from: {temp_dire} to {save_dir}")
+                    # if os.path.exists(save_dir):
+                    #     shutil.rmtree(save_dir)
                     shutil.move(temp_dire, save_dir)
                     print(
                         f"Model '{filename}' from {addr} is better than the "
