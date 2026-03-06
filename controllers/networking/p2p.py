@@ -337,7 +337,8 @@ class P2PNode:
         filename = os.path.basename(filepath)
 
         # Zip directory if needed
-        if os.path.isdir(filepath) and not filepath.endswith(".zip"):
+        if filepath.endswith(".zip"):  # Always zip files/folders
+            print("Will zip file before sending since it's a directory")
             zip_name = f"{filename}.zip"
             filename = zip_name
             zip_path = os.path.join(ZIPPED_DIRE, zip_name)
