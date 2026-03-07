@@ -7,7 +7,9 @@ use std::net::SocketAddr;
 
 #[tokio::main]
 async fn main() {
-    let app = Router::new().route("/ws", get(handler));
+    let app = Router::new()
+        .route("/ws", get(handler))
+        .route("/health", get(|| async { "OK" }));
     let server_address = format!("{}:{}", HOST, PORT);
     let listener = tokio::net::TcpListener::bind(&server_address)
         .await
