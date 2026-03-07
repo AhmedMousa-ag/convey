@@ -1,0 +1,50 @@
+name: Rust Server CI/CD
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-and-deploy:
+    # Use the custom label you assigned during runner setup
+    runs-on: self-hosted-rust
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Update Rust Toolchain
+        run: |
+          rustup update stable
+          rustup default stable
+
+      # Caching speeds up builds by storing dependencies between runs
+      - name: Cache Dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Run Tests
+        run: cargo test --verbose
+
+      - name: Build and Deploy with Docker Compose
+        if: github.ref == 'refs/heads/master'
+        run: |
+          # Navigate to the directory containing your docker-compose.yml
+          cd server/
+          docker compose build
+          docker compose up -d
+          docker image prune -f
