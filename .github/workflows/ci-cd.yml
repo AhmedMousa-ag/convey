@@ -37,8 +37,13 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
+            
+      - name: Test Client Python
+        run: |
+          docker build -f Dockerfile.test -t convey-test .
+          docker run --rm convey-test
 
-      - name: Run Tests
+      - name: Run Rust Server Tests
         run: |
           source $HOME/.cargo/env
           cd server/
@@ -51,3 +56,7 @@ jobs:
           cd server/
           docker compose build
           docker compose up -d
+      
+      - name: Notify Deployment
+        if: github.ref == 'refs/heads/master'
+        run: echo "Deployment to production server successful!"
