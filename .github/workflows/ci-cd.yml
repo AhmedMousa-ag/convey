@@ -20,6 +20,7 @@ jobs:
 
       - name: Update Rust Toolchain
         run: |
+          source $HOME/.cargo/env
           rustup update stable
           rustup default stable
 
@@ -38,13 +39,14 @@ jobs:
             ${{ runner.os }}-cargo-
 
       - name: Run Tests
-        run: cargo test --verbose
+        run: |
+          source $HOME/.cargo/env
+          cargo test --verbose
 
       - name: Build and Deploy with Docker Compose
         if: github.ref == 'refs/heads/master'
         run: |
-          # Navigate to the directory containing your docker-compose.yml
+          source $HOME/.cargo/env
           cd server/
           docker compose build
           docker compose up -d
-          docker image prune -f
