@@ -1,4 +1,4 @@
-use axum::{Router, routing::get};
+use axum::{Router, http::StatusCode, routing::get};
 use convey_server::{
     configs::config::{HOST, PORT},
     controller::{handler::handler, secret_manager::secret_change_interval},
@@ -9,7 +9,7 @@ use std::net::SocketAddr;
 async fn main() {
     let app = Router::new()
         .route("/ws", get(handler))
-        .route("/health", get(|| async { "OK" }));
+        .route("/health", get(|| async { StatusCode::OK }));
     let server_address = format!("{}:{}", HOST, PORT);
     let listener = tokio::net::TcpListener::bind(&server_address)
         .await
