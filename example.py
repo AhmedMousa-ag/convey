@@ -30,6 +30,7 @@ class TestStaticModel(TorchModelStatic, IVerifier):
         return DataLoader(testset, batch_size=128, shuffle=False, num_workers=4)
 
     def test_model(self, test_loader: DataLoader, model: torch.nn.Module) -> float:
+        model = model.to(device)
         model.eval()
         correct = 0
         total = 0
@@ -51,11 +52,11 @@ class TestStaticModel(TorchModelStatic, IVerifier):
         accuracy = (correct / total) * 100
         return accuracy
 
-    def is_better_score(self) -> bool:
+    def is_better_score(self, new_weights_path: str) -> bool:
         """target_score: true if higher means better, false if lower means better."""
         is_verified = False
         # Load model new weights.
-        model_weights = self.load_weights()
+        model_weights = self.load_weights(new_weights_path)
         print("Loaded weights")
         model_obj = self.load_model_obj()
         print("Load model object")
@@ -79,4 +80,6 @@ loaded_model: IStateVerifierModel = IStateVerifierModel.load_model_static(
     os.path.join(STATIC_MODULES_PATH, "my_model_slerp.dill")
 )
 
-print(f"Is better score: {loaded_model.is_better_score()}")
+print(
+    f"Is better score: {loaded_model.is_better_score("saved_models/model_1_weights.pth")}"
+)

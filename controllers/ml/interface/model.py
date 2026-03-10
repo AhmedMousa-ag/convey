@@ -15,7 +15,7 @@ class IModelStatic(ABC):
         self.metadata = metadata
 
     @abstractmethod
-    def load_weights(self) -> Dict[str, Any]:
+    def load_weights(self, path: str) -> Dict[str, Any]:
         pass
 
     @abstractmethod
@@ -41,12 +41,12 @@ class IModelStatic(ABC):
 
 class IVerifier(IModelStatic):
     @abstractmethod
-    def is_better_score(self) -> Tuple[bool, Any]:
+    def is_better_score(self, new_weights_path: str) -> Tuple[bool, Any]:
         """target_score: true if higher means better, false if lower means better."""
         is_verified = False
         # Load model new weights.
         self.load_data(self.metadata.dataset_path)
-        _ = self.load_weights()
+        _ = self.load_weights(new_weights_path)
         _ = self.load_model_obj()
         # Run against the dataset.
         # Compare with old score.

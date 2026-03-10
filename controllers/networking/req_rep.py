@@ -12,6 +12,7 @@ from models.clients import (
     P2PMessagesTypes,
     ResponseIsLatestModel,
     SyncLatestModel,
+    FileType,
 )
 from models.fallback import FileMsg, StringMsg
 from controllers.networking.messages_fallback import FallbacksManager
@@ -137,6 +138,12 @@ class Requester(BaseReqRepl):
             self.msg_serializer.sync_dataset(hashed_metadata).model_dump_json()
         )
 
+    def sync_model_weights(self, hashed_metadata: str) -> bool:
+        print("Requester: sync model weights")
+        return self._send_msg_rdnm_conn(
+            self.msg_serializer.sync_model_weights(hashed_metadata).model_dump_json()
+        )
+
     def sync_static_modules(self, hashed_metadata: str) -> bool:
         print("Requester: sync modules")
         return self._send_msg_rdnm_conn(
@@ -193,6 +200,12 @@ class Replier(BaseReqRepl):
             ip=ip, file_path=self.metadata.weights_path, file_type="MODEL"
         )
 
+    def reply_sync_model_weights(self, ip: str) -> bool:
+        print("Reply: sync model weights.")
+        return self._send_file(
+            ip=ip, file_path=self.metadata.weights_path, file_type="MODEL"
+        )
+
     def reply_sync_dataset(self, ip: str) -> bool:
         print("Reply: sync dataset.")
         return self._send_file(
@@ -204,5 +217,5 @@ class Replier(BaseReqRepl):
         return self._send_file(
             ip=ip,
             file_path=self.metadata.static_model_path,
-            file_type="STATIC_MOD",
+            file_type=FileType.STATIC_MOD.value,
         )

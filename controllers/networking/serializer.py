@@ -50,6 +50,13 @@ class MessageSerializer:
             hashed_metadata=hashed_metadata,
         )
 
+    def sync_model_weights(self, hashed_metadata: str) -> P2PMessage:
+        return P2PMessage(
+            msg_type=P2PMessagesTypes.SYNCModelWeights,
+            hashed_metadata=hashed_metadata,
+            message=SyncLatestModel(),
+        )
+
     def update_other_models(self, hashed_metadata: str):
         return P2PMessage(
             msg_type=P2PMessagesTypes.UPDATE,

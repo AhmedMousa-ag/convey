@@ -10,6 +10,7 @@ from configs.paths import (
     MODELS_DIR,
     DATASETS_TEST_DIR,
     STATIC_MODULES_PATH,
+    WEIGHTS_PATH,
 )
 from controllers.networking.messages import send_msg_sender
 from models.server import SubscribeTopic, ServerMessage, MessagesTypes
@@ -85,22 +86,39 @@ async def trigger_file_menu():
                 else datetime.strptime(metadata.latest_updated, DATEIME_FORMAT)
             )
 
-            weights_path = Path(metadata.weights_path)
+            ml_obj_path = Path(metadata.model_obj_path)
             models_dir = Path(MODELS_DIR)
             print("Will check weights.")
-            if weights_path.exists() and weights_path.parent != models_dir:
+            if ml_obj_path.exists() and ml_obj_path.parent != models_dir:
                 dest_dir = models_dir / metadata.get_model_name()
+                dest_dir.mkdir(parents=True, exist_ok=True)
+                dest_weights = dest_dir / ml_obj_path.name
+                print(f"Moving {ml_obj_path} to {dest_weights}")
+                shutil.move(str(ml_obj_path), str(dest_weights))
+                metadata.weights_path = str(dest_weights)
+                metadata.save()
+            elif ml_obj_path.parent == models_dir:
+                print(f"Weights already in {models_dir}")
+            else:
+                print(f"Warning: {ml_obj_path} does not exist, will attempt to sync.")
+                requester.ask_sync_model()
+
+            weights_path = Path(metadata.weights_path)
+            weights_dir = Path(WEIGHTS_PATH)
+            print("Will check weights.")
+            if weights_path.exists() and weights_path.parent != weights_dir:
+                dest_dir = weights_dir / metadata.get_model_name()
                 dest_dir.mkdir(parents=True, exist_ok=True)
                 dest_weights = dest_dir / weights_path.name
                 print(f"Moving {weights_path} to {dest_weights}")
                 shutil.move(str(weights_path), str(dest_weights))
                 metadata.weights_path = str(dest_weights)
                 metadata.save()
-            elif weights_path.parent == models_dir:
-                print(f"Weights already in {models_dir}")
+            elif weights_path.parent == weights_dir:
+                print(f"Weights already in {weights_dir}")
             else:
                 print(f"Warning: {weights_path} does not exist, will attempt to sync.")
-                requester.ask_sync_model()
+                requester.sync_model_weights(hashed_metadata)
 
             # Check and move dataset to DATASETS_TEST_DIR
             dataset_path = Path(metadata.dataset_path)

@@ -3,11 +3,7 @@ import threading
 import os
 from configs.config import CLIENT_PORT, CLIENT_HOST
 from configs.paths import (
-    DATASETS_TEST_DIR,
-    MODELS_DIR,
     ZIPPED_DIRE,
-    METADATA_PATH,
-    STATIC_MODULES_PATH,
 )
 import zipfile
 from controllers.networking.serializer import MessageSerializer
@@ -16,7 +12,7 @@ from configs.metadata import MetadataConfig
 import shutil
 from controllers.verifier.update_verifier import ModelVerifier
 from typing import Dict, Tuple
-from models.clients import AuthenticationMessage
+from models.clients import AuthenticationMessage, FileType
 
 
 class P2PNode:
@@ -141,7 +137,12 @@ class P2PNode:
                     print(f"No message type received from {addr}. Closing connection.")
                     break
 
-                if msg_type in ["MODEL", "DATA", "STATIC_MOD"]:
+                if msg_type in [
+                    FileType.MODEL.value,
+                    FileType.DATA.value,
+                    FileType.STATIC_MOD.value,
+                    FileType.WEIGHTS.value,
+                ]:
                     print(f"Will receive file of type {msg_type} from {addr}")
 
                     self._receive_file(
@@ -211,11 +212,13 @@ class P2PNode:
         print(f"Receiving {file_type} '{filename}' ({filesize} bytes) from {addr}")
         metadata = MetadataConfig.load_from_hashed_val(hashed_metadata)
         # Determine destination directory
-        if file_type == "MODEL":
+        if file_type == FileType.MODEL.value:
             save_dir = metadata.model_obj_path
-        elif file_type == "DATA":
+        elif file_type == FileType.WEIGHTS.value:
+            save_dir = metadata.weights_path
+        elif file_type == FileType.DATA.value:
             save_dir = metadata.dataset_path
-        elif file_type == "STATIC_MOD":
+        elif file_type == FileType.STATIC_MOD.value:
             save_dir = metadata.static_model_path
         else:
             # TODO maybe you should raise an error or something.
@@ -243,7 +246,7 @@ class P2PNode:
 
         with zipfile.ZipFile(zip_path, "r") as zip_ref:
             print("Will unzip folder")
-            if file_type == "MODEL":
+            if file_type in [FileType.WEIGHTS.value]:
                 zip_ref.extractall(temp_dire)
                 print(
                     f"Files extracted to {temp_dire} before checking and "
@@ -320,7 +323,7 @@ class P2PNode:
         peer_socket: socket.socket,
         filepath: str,
         hashed_metadata: str,
-        file_type: str = "MODEL",
+        file_type: str = FileType.MODEL.value,
     ) -> bool:
         """
         Send a file to a connected peer.
@@ -348,7 +351,12 @@ class P2PNode:
             self.__zip_folder(filepath, zip_path)
             filepath = zip_path
 
-        if file_type not in ["MODEL", "DATA", "STATIC_MOD"]:
+        if file_type not in [
+            FileType.MODEL.value,
+            FileType.DATA.value,
+            FileType.STATIC_MOD.value,
+            FileType.WEIGHTS.value,
+        ]:
             raise ValueError(
                 f"Invalid file type '{file_type}'. "
                 f"Must be 'MODEL', 'STATIC_MOD', or 'DATA'."
