@@ -2,61 +2,58 @@ name: Rust Server CI/CD
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "master", "dev" ] 
   pull_request:
-    branches: [ "master" ]
+    branches: [ "master", "dev" ]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build-and-deploy:
-    # Use the custom label you assigned during runner setup
+  # 1. CI GATE: Run on every single PR and Push
+  test-and-build:
     runs-on: self-hosted-rust
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Update Rust Toolchain
-        run: |
-          source $HOME/.cargo/env
-          rustup update stable
-          rustup default stable
-
-      # Caching speeds up builds by storing dependencies between runs
       - name: Cache Dependencies
         uses: actions/cache@v3
         with:
           path: |
             ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-            
-      - name: Test Client Python
-        run: |
-          docker build -f Dockerfile.test -t convey-test .
-          docker run --rm convey-test
 
-      - name: Run Rust Server Tests
+      - name: Run Tests
         run: |
-          source $HOME/.cargo/env
           cd server/
           cargo test --verbose
 
-      - name: Build and Deploy with Docker Compose
-        if: github.ref == 'refs/heads/master'
+  # 2. DEV DEPLOY: Only runs on the 'dev' branch
+  deploy-development:
+    needs: test-and-build
+    if: github.ref == 'refs/heads/dev'
+    runs-on: self-hosted-rust
+    environment: development
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Build Dev Environment
         run: |
-          source $HOME/.cargo/env
           cd server/
-          docker compose build
-          docker compose up -d
-      
-      - name: Notify Deployment
-        if: github.ref == 'refs/heads/master'
-        run: echo "Deployment to production server successful!"
+          docker compose -f docker-compose-dev.yml up -d --build
+
+  # 3. PROD DEPLOY: Only runs on the 'master' branch
+  deploy-production:
+    needs: test-and-build
+    if: github.ref == 'refs/heads/master'
+    runs-on: self-hosted-rust
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Build and Deploy Prod
+        run: |
+          cd server/
+          docker compose up -d --build
