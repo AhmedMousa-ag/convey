@@ -50,6 +50,13 @@ class MessageSerializer:
             hashed_metadata=hashed_metadata,
         )
 
+    def sync_model_weights(self, hashed_metadata: str) -> P2PMessage:
+        return P2PMessage(
+            msg_type=P2PMessagesTypes.SYNCModelWeights,
+            hashed_metadata=hashed_metadata,
+            message=SyncLatestModel(),
+        )
+
     def update_other_models(self, hashed_metadata: str):
         return P2PMessage(
             msg_type=P2PMessagesTypes.UPDATE,
@@ -60,9 +67,6 @@ class MessageSerializer:
     def receive_msg(
         self, received_raw_message: str
     ) -> Tuple[str, P2PMessagesTypes, Dict]:
-        print(
-            f"Received raw message: {received_raw_message}"
-        )  # TODO, the recieved messages are several ones.
         raw_message: Dict = json.loads(received_raw_message)
         hashed_metadata: str = raw_message["hashed_metadata"]
         message: Dict = raw_message["message"]

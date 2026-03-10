@@ -40,6 +40,7 @@ class P2PMessagesTypes(Enum):
     SYNCDataset = "sync_dataset"
     UPDATE = "update_model"
     SYNCStaticModules = "sync_static_modules"
+    SYNCModelWeights = "sync_model_weights"
 
 
 class P2PMessage(BaseModel):
@@ -53,3 +54,10 @@ class P2PMessage(BaseModel):
         | SyncDataset
         | SyncStaticModules
     )
+
+
+class FileType(Enum):
+    MODEL = "MODEL"
+    DATA = "DATA"
+    STATIC_MOD = "STATIC_MOD"
+    WEIGHTS = "MODEL_WEIG"

@@ -52,29 +52,34 @@ class ModelVerifier:
         self.metadata: MetadataConfig = metadata
 
     def is_better_model(self, new_weights_path: str) -> bool:
+        # If there's no weights, then accept the new model without verification since there's nothing to compare against.
+        # Check if the file exists or not
+        if not os.path.exists(self.metadata.weights_path):
+            print("No existing weights to verify against. Accepting new model.")
+            return True
+        else:
+            # Move the new weights file to the a temporary location in the models directory.
+            temp_weights_path = os.path.join(
+                MODELS_DIR, f"temp_{self.metadata.model_name}.pth"
+            )
+            shutil.move(new_weights_path, temp_weights_path)
+            print(f"\nNew weights file copied to {temp_weights_path}")
+            # Update the metadata to point to the new weights file.
+            weights_old_path = self.metadata.weights_path
+            self.metadata.weights_path = temp_weights_path
+            #  Verify the new model before sending it to others.
+            loaded_model: IStateVerifierModel = IStateVerifierModel.load_model_static(
+                os.path.join(STATIC_MODULES_PATH, "my_model_slerp.dill")
+            )
+            loaded_model.metadata = self.metadata
+            is_better, new_score = loaded_model.is_better_score()
+            if not is_better:
+                print("\nThe new model does not have a better score. Update cancelled.")
+                os.remove(temp_weights_path)
+                input("\nPress Enter to continue...")
+                return False
 
-        # Move the new weights file to the a temporary location in the models directory.
-        temp_weights_path = os.path.join(
-            MODELS_DIR, f"temp_{self.metadata.model_name}.pth"
-        )
-        shutil.move(new_weights_path, temp_weights_path)
-        print(f"\nNew weights file copied to {temp_weights_path}")
-        # Update the metadata to point to the new weights file.
-        weights_old_path = self.metadata.weights_path
-        self.metadata.weights_path = temp_weights_path
-        #  Verify the new model before sending it to others.
-        loaded_model: IStateVerifierModel = IStateVerifierModel.load_model_static(
-            os.path.join(STATIC_MODULES_PATH, "my_model_slerp.dill")
-        )
-        loaded_model.metadata = self.metadata
-        is_better, new_score = loaded_model.is_better_score()
-        if not is_better:
-            print("\nThe new model does not have a better score. Update cancelled.")
-            os.remove(temp_weights_path)
-            input("\nPress Enter to continue...")
-            return False
-
-        print(f"Model new weight is better score: {is_better}")
+            print(f"Model new weight is better score: {is_better}")
         # Update the metadata file with the new weights path and latest update time.
         self.metadata.latest_updated = datetime.now().strftime(DATEIME_FORMAT)
         self.metadata.best_score = new_score

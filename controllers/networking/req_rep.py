@@ -12,6 +12,7 @@ from models.clients import (
     P2PMessagesTypes,
     ResponseIsLatestModel,
     SyncLatestModel,
+    FileType,
 )
 from models.fallback import FileMsg, StringMsg
 from controllers.networking.messages_fallback import FallbacksManager
@@ -54,8 +55,12 @@ class BaseReqRepl:
         return True
 
     def _send_file(self, ip: str, file_path: str, file_type: str = "MODEL") -> bool:
+        print(
+            f"Requester: Trying to send file to {ip} with path {file_path} and type {file_type}"
+        )
         conn = get_socket_connection(ip=ip)
         if conn is None:
+            print("Connection is None, registering fallback file.")
             self.fallback_mng.register_file(
                 self.metadata.hash_self(), ip, file_path, file_type
             )
@@ -133,6 +138,12 @@ class Requester(BaseReqRepl):
             self.msg_serializer.sync_dataset(hashed_metadata).model_dump_json()
         )
 
+    def sync_model_weights(self, hashed_metadata: str) -> bool:
+        print("Requester: sync model weights")
+        return self._send_msg_rdnm_conn(
+            self.msg_serializer.sync_model_weights(hashed_metadata).model_dump_json()
+        )
+
     def sync_static_modules(self, hashed_metadata: str) -> bool:
         print("Requester: sync modules")
         return self._send_msg_rdnm_conn(
@@ -189,6 +200,12 @@ class Replier(BaseReqRepl):
             ip=ip, file_path=self.metadata.weights_path, file_type="MODEL"
         )
 
+    def reply_sync_model_weights(self, ip: str) -> bool:
+        print("Reply: sync model weights.")
+        return self._send_file(
+            ip=ip, file_path=self.metadata.weights_path, file_type="MODEL"
+        )
+
     def reply_sync_dataset(self, ip: str) -> bool:
         print("Reply: sync dataset.")
         return self._send_file(
@@ -200,5 +217,5 @@ class Replier(BaseReqRepl):
         return self._send_file(
             ip=ip,
             file_path=self.metadata.static_model_path,
-            file_type="STATIC_MODULES",
+            file_type=FileType.STATIC_MOD.value,
         )

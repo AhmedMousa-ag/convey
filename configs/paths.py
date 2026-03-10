@@ -19,3 +19,6 @@ os.makedirs(ZIPPED_DIRE, exist_ok=True)
 
 STATIC_MODULES_PATH = os.path.join(CONVERY_USR_DIR, "static_modules")
 os.makedirs(STATIC_MODULES_PATH, exist_ok=True)
+
+WEIGHTS_PATH = os.path.join(CONVERY_USR_DIR, "weights")
+os.makedirs(WEIGHTS_PATH, exist_ok=True)
