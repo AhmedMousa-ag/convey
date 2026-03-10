@@ -27,6 +27,7 @@ jobs:
 
       - name: Run Tests
         run: |
+          source $HOME/.cargo/env
           cd server/
           cargo test --verbose
 
