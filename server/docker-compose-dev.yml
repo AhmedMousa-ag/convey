@@ -2,7 +2,7 @@ services:
   app:
     build: .
     ports:
-      - "5000:3000"
+      - "5050:3000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
