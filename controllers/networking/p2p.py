@@ -15,6 +15,96 @@ from typing import Dict, Tuple
 from models.clients import AuthenticationMessage, FileType
 
 
+class TransferPathManager:
+    def __init__(self, zipped_dir: str) -> None:
+        self.zipped_dir = zipped_dir
+
+    def get_target_path(self, metadata: MetadataConfig, file_type: str) -> str:
+        if file_type == FileType.MODEL.value:
+            return metadata.model_obj_path
+        if file_type == FileType.WEIGHTS.value:
+            return metadata.weights_path
+        if file_type == FileType.DATA.value:
+            return metadata.dataset_path
+        if file_type == FileType.STATIC_MOD.value:
+            return metadata.static_model_path
+        return "received_files"
+
+    def is_directory_target(self, file_type: str, target_path: str) -> bool:
+        return file_type == FileType.DATA.value and (
+            os.path.isdir(target_path)
+            or os.path.splitext(os.path.basename(target_path))[1] == ""
+        )
+
+    def move_and_overwrite(self, source: str, destination: str):
+        parent_dir = os.path.dirname(destination)
+        if parent_dir:
+            os.makedirs(parent_dir, exist_ok=True)
+        if os.path.exists(destination):
+            if os.path.isdir(destination):
+                shutil.rmtree(destination)
+            else:
+                os.remove(destination)
+        shutil.move(source, destination)
+
+    def move_directory_contents(self, source_dir: str, destination_dir: str):
+        os.makedirs(destination_dir, exist_ok=True)
+        for item in os.listdir(source_dir):
+            self.move_and_overwrite(
+                os.path.join(source_dir, item),
+                os.path.join(destination_dir, item),
+            )
+
+    def get_single_extracted_file(self, extract_dir: str) -> str:
+        extracted_files = []
+        for root, _, files in os.walk(extract_dir):
+            for file in files:
+                extracted_files.append(os.path.join(root, file))
+
+        if len(extracted_files) != 1:
+            raise ValueError(
+                f"Expected a single file in archive, found {len(extracted_files)}"
+            )
+
+        return extracted_files[0]
+
+    def prepare_transfer_file(self, filepath: str) -> tuple[str, str]:
+        source_path = os.path.abspath(filepath)
+        source_name = os.path.basename(os.path.normpath(source_path))
+        archive_path = os.path.join(self.zipped_dir, f"{source_name}.zip")
+
+        if os.path.exists(archive_path):
+            os.remove(archive_path)
+
+        with zipfile.ZipFile(archive_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+            if os.path.isdir(source_path):
+                print("Will zip directory before sending")
+                for root, _, files in os.walk(source_path):
+                    for file in files:
+                        full_path = os.path.join(root, file)
+                        rel_path = os.path.relpath(full_path, start=source_path)
+                        zipf.write(full_path, arcname=rel_path)
+            else:
+                print("Will zip file before sending")
+                zipf.write(source_path, arcname=os.path.basename(source_path))
+
+        return archive_path, os.path.basename(archive_path)
+
+    def get_temp_extract_dir(self, filename: str) -> str:
+        return os.path.join(self.zipped_dir, "temp", filename.split(".")[0])
+
+    def get_incoming_archive_path(self, filename: str) -> str:
+        return os.path.join(self.zipped_dir, filename)
+
+    def cleanup_path(self, path: str):
+        if not os.path.exists(path):
+            return
+        if os.path.isdir(path):
+            shutil.rmtree(path)
+        else:
+            os.remove(path)
+
+
 class P2PNode:
     # Singleton pattern
     def __new__(cls):
@@ -35,6 +125,7 @@ class P2PNode:
         self.server.bind((self.host, self.port))
         self.server.listen(5)
         self.serializer = MessageSerializer()
+        self.path_manager = TransferPathManager(ZIPPED_DIRE)
 
         # Hashed Metadata and the reflected secret key.
         self.metadata_secrets: Dict[str, str] = {}
@@ -193,7 +284,7 @@ class P2PNode:
 
     def _receive_file(self, conn, addr, file_type, hashed_metadata):
         """
-        Receives a file and saves it to the appropriate directory.
+        Receives an archived file payload and restores it to the appropriate path.
         All fixed-size fields use recv_exact to prevent boundary issues.
         """
         try:
@@ -211,25 +302,12 @@ class P2PNode:
 
         print(f"Receiving {file_type} '{filename}' ({filesize} bytes) from {addr}")
         metadata = MetadataConfig.load_from_hashed_val(hashed_metadata)
-        # Determine destination directory
-        if file_type == FileType.MODEL.value:
-            save_dir = metadata.model_obj_path
-        elif file_type == FileType.WEIGHTS.value:
-            save_dir = metadata.weights_path
-        elif file_type == FileType.DATA.value:
-            save_dir = metadata.dataset_path
-        elif file_type == FileType.STATIC_MOD.value:
-            save_dir = metadata.static_model_path
-        else:
-            # TODO maybe you should raise an error or something.
-            save_dir = "received_files"
-
-        os.makedirs(save_dir, exist_ok=True)
-        temp_dire = os.path.join(ZIPPED_DIRE, "temp", filename.split(".")[0])
+        target_path = self.path_manager.get_target_path(metadata, file_type)
+        temp_dire = self.path_manager.get_temp_extract_dir(filename)
+        self.path_manager.cleanup_path(temp_dire)
         os.makedirs(temp_dire, exist_ok=True)
 
-        filepath = os.path.join(save_dir, filename)
-        zip_path = os.path.join(ZIPPED_DIRE, filename)
+        zip_path = self.path_manager.get_incoming_archive_path(filename)
 
         # Receive file data in chunks until exactly filesize bytes are read
         received = 0
@@ -244,45 +322,43 @@ class P2PNode:
         # Acknowledge receipt
         conn.sendall(b"ACK")
 
-        with zipfile.ZipFile(zip_path, "r") as zip_ref:
-            print("Will unzip folder")
-            if file_type in [FileType.WEIGHTS.value]:
+        try:
+            with zipfile.ZipFile(zip_path, "r") as zip_ref:
+                print("Will unzip received archive")
                 zip_ref.extractall(temp_dire)
-                print(
-                    f"Files extracted to {temp_dire} before checking and "
-                    f"moving to {save_dir}"
-                )
 
-                if ModelVerifier(metadata).is_better_model(temp_dire):
-                    # To /home/akm/.convey/models/my_model_slerp/model_1.pth
-                    print(f"Will move from: {temp_dire} to {save_dir}")
-
-                    def move_and_overwrite(source, destination):
-                        if os.path.exists(destination):
-                            if os.path.isdir(destination):
-                                shutil.rmtree(destination)
-                            else:
-                                os.remove(destination)
-                        shutil.move(source, destination)
-
-                    move_and_overwrite(temp_dire, save_dir)
+            if self.path_manager.is_directory_target(file_type, target_path):
+                self.path_manager.move_directory_contents(temp_dire, target_path)
+                final_path = target_path
+            elif file_type == FileType.WEIGHTS.value:
+                extracted_file = self.path_manager.get_single_extracted_file(temp_dire)
+                had_existing_weights = os.path.exists(target_path)
+                if ModelVerifier(metadata).is_better_model(extracted_file):
+                    if not had_existing_weights and os.path.exists(extracted_file):
+                        self.path_manager.move_and_overwrite(
+                            extracted_file, target_path
+                        )
+                    final_path = target_path
                     print(
-                        f"Model '{filename}' from {addr} is better than the "
-                        f"current model."
+                        f"Weights '{filename}' from {addr} were accepted at {target_path}"
                     )
                 else:
                     print(
-                        f"Received model from {addr} is not better than the "
-                        f"current model. Discarding."
+                        f"Received weights from {addr} are not better than the current model. Discarding."
                     )
+                    final_path = target_path
             else:
-                zip_ref.extractall(save_dir)
-                print(f"Files extracted to {save_dir}")
+                extracted_file = self.path_manager.get_single_extracted_file(temp_dire)
+                self.path_manager.move_and_overwrite(extracted_file, target_path)
+                final_path = target_path
 
-        print(
-            f"{file_type} '{filename}' received successfully "
-            f"({received} bytes) at {filepath}"
-        )
+            print(
+                f"{file_type} '{filename}' received successfully "
+                f"({received} bytes) at {final_path}"
+            )
+        finally:
+            self.path_manager.cleanup_path(zip_path)
+            self.path_manager.cleanup_path(temp_dire)
 
     def start_server(self):
         def run():
@@ -340,17 +416,6 @@ class P2PNode:
             print(f"Error: File '{filepath}' not found")
             return False
 
-        filename = os.path.basename(filepath)
-
-        # Zip directory if needed
-        if filepath.endswith(".zip"):  # Always zip files/folders
-            print("Will zip file before sending since it's a directory")
-            zip_name = f"{filename}.zip"
-            filename = zip_name
-            zip_path = os.path.join(ZIPPED_DIRE, zip_name)
-            self.__zip_folder(filepath, zip_path)
-            filepath = zip_path
-
         if file_type not in [
             FileType.MODEL.value,
             FileType.DATA.value,
@@ -362,6 +427,7 @@ class P2PNode:
                 f"Must be 'MODEL', 'STATIC_MOD', or 'DATA'."
             )
 
+        filepath, filename = self.path_manager.prepare_transfer_file(filepath)
         filesize = os.path.getsize(filepath)
         print(f"Sending {file_type} '{filename}' ({filesize} bytes)")
 
@@ -408,15 +474,6 @@ class P2PNode:
         else:
             print("File transfer acknowledgment not received")
             return False
-
-    def __zip_folder(self, filepath: str, zip_path: str):
-        print("Will zip folder")
-        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
-            for root, _, files in os.walk(filepath):
-                for file in files:
-                    full_path = os.path.join(root, file)
-                    rel_path = os.path.relpath(full_path, start=filepath)
-                    zipf.write(full_path, arcname=rel_path)
 
 
 p2p_node = P2PNode()

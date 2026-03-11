@@ -168,7 +168,9 @@ class Requester(BaseReqRepl):
         print("Requester: update new weights")
         for ip in get_connection_p2p_pool(self.metadata.hash_self()):
             self._send_file(
-                ip=ip, file_path=self.metadata.weights_path, file_type="MODEL"
+                ip=ip,
+                file_path=self.metadata.weights_path,
+                file_type=FileType.WEIGHTS.value,
             )
 
 
@@ -197,13 +199,17 @@ class Replier(BaseReqRepl):
     def reply_sync_model(self, ip: str) -> bool:
         print("Reply: sync model.")
         return self._send_file(
-            ip=ip, file_path=self.metadata.weights_path, file_type="MODEL"
+            ip=ip,
+            file_path=self.metadata.model_obj_path,
+            file_type=FileType.MODEL.value,
         )
 
     def reply_sync_model_weights(self, ip: str) -> bool:
         print("Reply: sync model weights.")
         return self._send_file(
-            ip=ip, file_path=self.metadata.weights_path, file_type="MODEL"
+            ip=ip,
+            file_path=self.metadata.weights_path,
+            file_type=FileType.WEIGHTS.value,
         )
 
     def reply_sync_dataset(self, ip: str) -> bool:
