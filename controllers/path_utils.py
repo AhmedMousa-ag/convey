@@ -13,3 +13,8 @@ def is_within_directory(path_value: str, directory: str) -> bool:
         return True
     except ValueError:
         return False
+
+
+def is_directory_has_files(path_value: str) -> bool:
+    path = Path(path_value).expanduser()
+    return path.is_dir() and any(path.iterdir())

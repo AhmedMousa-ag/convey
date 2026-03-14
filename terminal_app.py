@@ -5,7 +5,11 @@ from configs.metadata import (
     StrategyType,
     add_metadata_pool,
 )
-from controllers.path_utils import normalize_path, is_within_directory
+from controllers.path_utils import (
+    normalize_path,
+    is_within_directory,
+    is_directory_has_files,
+)
 from configs.paths import (
     METADATA_PATH,
     MODELS_DIR,
@@ -138,8 +142,10 @@ async def trigger_file_menu():
             # Check and move dataset to DATASETS_TEST_DIR
             dataset_path = Path(metadata.dataset_path)
             datasets_dir = Path(DATASETS_TEST_DIR)
-            if dataset_path.exists() and not is_within_directory(
-                str(dataset_path), DATASETS_TEST_DIR
+            if (
+                dataset_path.exists()
+                and not is_within_directory(str(dataset_path), DATASETS_TEST_DIR)
+                and is_directory_has_files(str(dataset_path))
             ):
                 try:
                     dest_dir = datasets_dir / metadata.get_model_name()
@@ -151,8 +157,12 @@ async def trigger_file_menu():
                     metadata.save()
                 except Exception as e:
                     print(f"Error moving dataset: {e}")
-            elif is_within_directory(str(dataset_path), DATASETS_TEST_DIR):
+            # If the dataset path is within the datasets directory but doesn't exist, we should also attempt to sync it.
+            elif is_within_directory(
+                str(dataset_path), DATASETS_TEST_DIR
+            ) and is_directory_has_files(str(dataset_path)):
                 print(f"Dataset already in {datasets_dir}")
+
             else:
                 print(f"Warning: {dataset_path} does not exist, will attempt to sync.")
                 requester.sync_dataset(hashed_metadata)
