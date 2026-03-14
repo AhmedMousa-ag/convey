@@ -133,25 +133,25 @@ class Requester(BaseReqRepl):
         )
 
     def sync_dataset(self, hashed_metadata: str) -> bool:
-        # print("Requester: sync data")
+        print("Requester: sync data")
         return self._send_msg_rdnm_conn(
             self.msg_serializer.sync_dataset(hashed_metadata).model_dump_json()
         )
 
     def sync_model_weights(self, hashed_metadata: str) -> bool:
-        # print("Requester: sync model weights")
+        print("Requester: sync model weights")
         return self._send_msg_rdnm_conn(
             self.msg_serializer.sync_model_weights(hashed_metadata).model_dump_json()
         )
 
     def sync_static_modules(self, hashed_metadata: str) -> bool:
-        # print("Requester: sync modules")
+        print("Requester: sync modules")
         return self._send_msg_rdnm_conn(
             self.msg_serializer.sync_static_modules(hashed_metadata).model_dump_json()
         )
 
     def ask_sync_model(self, latest_peers_addr: list[str] | None = None):
-        # print("Requester: ask sync model")
+        print("Requester: ask sync model")
         hashed_metadata = self.metadata.hash_self()
         # Get random address of these ones.
         # send a message with SyncModel
