@@ -13,7 +13,7 @@ class TransmitterManager:
         )
         self.requester = Requester(self.metadata, p2p_node)
         self.replier = Replier(self.metadata, p2p_node)
-        print("WIll store peer address: ", peer_address)
+        # print("WIll store peer address: ", peer_address)
         self.peer_address = peer_address
 
     def reply(self, msg_type: P2PMessagesTypes, msg: Dict) -> str | None:

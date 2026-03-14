@@ -138,7 +138,7 @@ class P2PNode:
         which is the root cause of 'several messages arriving at the same time'.
         Raises ConnectionError if the socket closes before n bytes arrive.
         """
-        print(f"Attempting to read exactly {n} bytes from socket")
+        # print(f"Attempting to read exactly {n} bytes from socket")
         buf = bytearray()
         while len(buf) < n:
             chunk = conn.recv(n - len(buf))
@@ -153,7 +153,7 @@ class P2PNode:
         Wire format:  [4-byte big-endian length][payload bytes]
         Guarantees that exactly one logical message is returned per call.
         """
-        print("Waiting to receive framed message (4-byte length prefix)")
+        # print("Waiting to receive framed message (4-byte length prefix)")
         length_bytes = self.recv_exact(conn, 4)
         length = int.from_bytes(length_bytes, byteorder="big")
         return self.recv_exact(conn, length)
@@ -176,11 +176,11 @@ class P2PNode:
         try:
             data = self.recv_framed(conn)
             auth_msg = AuthenticationMessage.model_validate_json(data)
-            print(f"Received authentication message: {auth_msg}")
+            # print(f"Received authentication message: {auth_msg}")
             received_secret = auth_msg.secret_key
             existing_secret = self.metadata_secrets.get(auth_msg.hashed_metadata)
             if received_secret == existing_secret:
-                print("Secret verified.")
+                # print("Secret verified.")
                 return True, auth_msg.hashed_metadata
             print(
                 f"Couldn't verify secret — received: {received_secret}, "
@@ -222,7 +222,7 @@ class P2PNode:
                     break
 
                 msg_type = msg_type_raw.decode().strip()
-                print(f"Received message type: {msg_type}")
+                # print(f"Received message type: {msg_type}")
 
                 if not msg_type:
                     print(f"No message type received from {addr}. Closing connection.")
@@ -234,7 +234,7 @@ class P2PNode:
                     FileType.STATIC_MOD.value,
                     FileType.WEIGHTS.value,
                 ]:
-                    print(f"Will receive file of type {msg_type} from {addr}")
+                    # print(f"Will receive file of type {msg_type} from {addr}")
 
                     self._receive_file(
                         conn=conn,
@@ -245,7 +245,7 @@ class P2PNode:
 
                 elif msg_type == "TEXT":
                     try:
-                        print("Receiving TEXT message body...")
+                        # print("Receiving TEXT message body...")
                         data = self.recv_framed(conn)
                     except ConnectionError:
                         print(f"Connection closed by {addr} while reading TEXT body")
@@ -253,7 +253,7 @@ class P2PNode:
 
                     if not data:
                         break
-                    print(f"Received from {addr}: {data.decode()}")
+                    # print(f"Received from {addr}: {data.decode()}")
                     hashed_metadata, msg_type_inner, message = (
                         self.serializer.receive_msg(data.decode())
                     )
@@ -290,12 +290,12 @@ class P2PNode:
         try:
             # Filename length (4 bytes) + filename
             filename_len = int.from_bytes(self.recv_exact(conn, 4), byteorder="big")
-            print(f"Filename length: {filename_len} bytes")
+            # print(f"Filename length: {filename_len} bytes")
             filename = self.recv_exact(conn, filename_len).decode()
-            print(f"Filename: {filename}")
+            # print(f"Filename: {filename}")
             # File size (8 bytes)
             filesize = int.from_bytes(self.recv_exact(conn, 8), byteorder="big")
-            print(f"File size: {filesize} bytes")
+            # print(f"File size: {filesize} bytes")
         except ConnectionError as e:
             print(f"Error reading file metadata from {addr}: {e}")
             return
@@ -324,7 +324,7 @@ class P2PNode:
 
         try:
             with zipfile.ZipFile(zip_path, "r") as zip_ref:
-                print("Will unzip received archive")
+                # print("Will unzip received archive")
                 zip_ref.extractall(temp_dire)
 
             if self.path_manager.is_directory_target(file_type, target_path):
@@ -429,7 +429,7 @@ class P2PNode:
 
         filepath, filename = self.path_manager.prepare_transfer_file(filepath)
         filesize = os.path.getsize(filepath)
-        print(f"Sending {file_type} '{filename}' ({filesize} bytes)")
+        # print(f"Sending {file_type} '{filename}' ({filesize} bytes)")
 
         # FIX 2: Auth must be sent before every message since the receiver
         # loop calls _verify_secret_key at the top of every iteration.
@@ -439,7 +439,7 @@ class P2PNode:
 
         # 1. Message type header (fixed 10 bytes)
         peer_socket.sendall(file_type.ljust(10).encode())
-        print(f"Sent file type header: '{file_type}'")
+        # print(f"Sent file type header: '{file_type}'")
 
         # 2. Filename length + filename
         filename_bytes = filename.encode()

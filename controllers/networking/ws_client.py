@@ -30,7 +30,7 @@ async def read_handler(websocket):
                         )
                     elif msg_type == MessagesTypes.SUBSCRIBE.value:
                         # If the message type is for subscribing to a topic
-                        print("Got subscribe message from server................")
+                        # print("Got subscribe message from server................")
                         client_data = ClientsIPAddresses(**msg_data)
                         conn = p2p_node.connect_to_peer(client_data.ip, CLIENT_PORT)
                         update_connection_p2p_pool(client_data, conn)
@@ -50,7 +50,7 @@ async def write_handler(websocket):
         message = await get_msg_sender()
 
         if message:
-            print("Got a message to send")
+            # print("Got a message to send")
             if isinstance(message, BaseModel):
                 message = message.model_dump_json()
 
