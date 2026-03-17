@@ -5,6 +5,11 @@ from configs.metadata import (
     StrategyType,
     add_metadata_pool,
 )
+from controllers.path_utils import (
+    normalize_path,
+    is_within_directory,
+    is_directory_has_files,
+)
 from configs.paths import (
     METADATA_PATH,
     MODELS_DIR,
@@ -86,19 +91,31 @@ async def trigger_file_menu():
                 else datetime.strptime(metadata.latest_updated, DATEIME_FORMAT)
             )
 
-            ml_obj_path = Path(metadata.model_obj_path)
+            if metadata.model_obj_path:
+                metadata.model_obj_path = normalize_path(metadata.model_obj_path)
+            metadata.weights_path = normalize_path(metadata.weights_path)
+            metadata.dataset_path = normalize_path(metadata.dataset_path)
+            metadata.static_model_path = normalize_path(metadata.static_model_path)
+
+            ml_obj_path = (
+                Path(metadata.model_obj_path) if metadata.model_obj_path else None
+            )
             models_dir = Path(MODELS_DIR)
-            print("Will check weights.")
-            if ml_obj_path.exists() and ml_obj_path.parent != models_dir:
+            print("Will check model object.")
+            if ml_obj_path is None:
+                print("No model object path configured.")
+            elif ml_obj_path.exists() and not is_within_directory(
+                str(ml_obj_path), MODELS_DIR
+            ):
                 dest_dir = models_dir / metadata.get_model_name()
                 dest_dir.mkdir(parents=True, exist_ok=True)
-                dest_weights = dest_dir / ml_obj_path.name
-                print(f"Moving {ml_obj_path} to {dest_weights}")
-                shutil.move(str(ml_obj_path), str(dest_weights))
-                metadata.weights_path = str(dest_weights)
+                dest_model_obj = dest_dir / ml_obj_path.name
+                print(f"Moving {ml_obj_path} to {dest_model_obj}")
+                shutil.move(str(ml_obj_path), str(dest_model_obj))
+                metadata.model_obj_path = str(dest_model_obj)
                 metadata.save()
-            elif ml_obj_path.parent == models_dir:
-                print(f"Weights already in {models_dir}")
+            elif is_within_directory(str(ml_obj_path), MODELS_DIR):
+                print(f"Model object already in {models_dir}")
             else:
                 print(f"Warning: {ml_obj_path} does not exist, will attempt to sync.")
                 requester.ask_sync_model()
@@ -106,7 +123,9 @@ async def trigger_file_menu():
             weights_path = Path(metadata.weights_path)
             weights_dir = Path(WEIGHTS_PATH)
             print("Will check weights.")
-            if weights_path.exists() and weights_path.parent != weights_dir:
+            if weights_path.exists() and not is_within_directory(
+                str(weights_path), WEIGHTS_PATH
+            ):
                 dest_dir = weights_dir / metadata.get_model_name()
                 dest_dir.mkdir(parents=True, exist_ok=True)
                 dest_weights = dest_dir / weights_path.name
@@ -114,7 +133,7 @@ async def trigger_file_menu():
                 shutil.move(str(weights_path), str(dest_weights))
                 metadata.weights_path = str(dest_weights)
                 metadata.save()
-            elif weights_path.parent == weights_dir:
+            elif is_within_directory(str(weights_path), WEIGHTS_PATH):
                 print(f"Weights already in {weights_dir}")
             else:
                 print(f"Warning: {weights_path} does not exist, will attempt to sync.")
@@ -123,7 +142,11 @@ async def trigger_file_menu():
             # Check and move dataset to DATASETS_TEST_DIR
             dataset_path = Path(metadata.dataset_path)
             datasets_dir = Path(DATASETS_TEST_DIR)
-            if dataset_path.exists() and dataset_path.parent != datasets_dir:
+            if (
+                dataset_path.exists()
+                and not is_within_directory(str(dataset_path), DATASETS_TEST_DIR)
+                and is_directory_has_files(str(dataset_path))
+            ):
                 try:
                     dest_dir = datasets_dir / metadata.get_model_name()
                     dest_dir.mkdir(parents=True, exist_ok=True)
@@ -134,8 +157,12 @@ async def trigger_file_menu():
                     metadata.save()
                 except Exception as e:
                     print(f"Error moving dataset: {e}")
-            elif dataset_path.parent == datasets_dir:
+            # If the dataset path is within the datasets directory but doesn't exist, we should also attempt to sync it.
+            elif is_within_directory(
+                str(dataset_path), DATASETS_TEST_DIR
+            ) and is_directory_has_files(str(dataset_path)):
                 print(f"Dataset already in {datasets_dir}")
+
             else:
                 print(f"Warning: {dataset_path} does not exist, will attempt to sync.")
                 requester.sync_dataset(hashed_metadata)
@@ -180,17 +207,13 @@ async def upload_file_menu():
         with open(file_path, "r") as f:
             metadata_file = MetadataConfig.parse_string(f.read())
 
-        if METADATA_PATH not in metadata_file.weights_path:
-            weights_path = Path(metadata_file.weights_path)
-            metadata_file.weights_path = os.path.join(METADATA_PATH, weights_path.name)
-            os.makedirs(metadata_file.weights_path, exist_ok=True)
-        if DATASETS_TEST_DIR not in metadata_file.dataset_path:
-            data_path = Path(metadata_file.dataset_path)
-            metadata_file.dataset_path = os.path.join(
-                DATASETS_TEST_DIR,
-                data_path.parent.name if not data_path.is_dir() else data_path.name,
-            )
-            os.makedirs(metadata_file.dataset_path, exist_ok=True)
+        if metadata_file.model_obj_path:
+            metadata_file.model_obj_path = normalize_path(metadata_file.model_obj_path)
+        metadata_file.weights_path = normalize_path(metadata_file.weights_path)
+        metadata_file.dataset_path = normalize_path(metadata_file.dataset_path)
+        metadata_file.static_model_path = normalize_path(
+            metadata_file.static_model_path
+        )
         print("\nMetadata content:")
         print(metadata_file.model_dump_json(indent=2))
 
@@ -234,12 +257,14 @@ async def create_metadata_menu():
         dataset_path = input(
             "\nDataset Path (default=./data): "
         ).strip() or os.path.abspath(os.path.join(os.path.curdir, "data"))
+        dataset_path = normalize_path(dataset_path)
         model_name = input("Model Name (default=my_model): ").strip() or "my_model"
         weights_path = input(
             "Weights Path (default=./saved_models/model_1.pth): "
         ).strip() or os.path.abspath(
             os.path.join(os.path.curdir, "saved_models", "model_1.pth")
         )
+        weights_path = normalize_path(weights_path)
         default_static_modules_path = os.path.join(
             STATIC_MODULES_PATH, f"{model_name}_{merge_strategy}.dill"
         )
@@ -249,6 +274,7 @@ async def create_metadata_menu():
             ).strip()
             or default_static_modules_path
         )
+        static_modules_path = normalize_path(static_modules_path)
         t_input = input("T - Threshold/Temperature (0.0-1.0, default=0.95): ").strip()
         t = float(t_input) if t_input else 0.95
 

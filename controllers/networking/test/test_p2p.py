@@ -3,7 +3,8 @@ import os
 import zipfile
 import unittest
 from unittest.mock import MagicMock, patch, mock_open
-from controllers.networking.p2p import P2PNode
+from controllers.networking.p2p import P2PNode, TransferPathManager
+from configs.paths import ZIPPED_DIRE
 
 
 def make_node() -> "P2PNode":  # noqa: F821
@@ -20,6 +21,7 @@ def make_node() -> "P2PNode":  # noqa: F821
     node.peers = set()
     node.server = MagicMock()
     node.serializer = MagicMock()
+    node.path_manager = TransferPathManager(ZIPPED_DIRE)
     node.metadata_secrets = {}
     return node
 
@@ -104,7 +106,7 @@ class TestVerifySecretKey(unittest.TestCase):
             ):
                 result = self.node._verify_secret_key(sock)
 
-        self.assertTrue(result)
+        self.assertEqual(result, (True, "myhash"))
 
     def test_returns_false_for_wrong_secret(self):
         self.node.metadata_secrets["myhash"] = "correct_secret"
@@ -122,7 +124,7 @@ class TestVerifySecretKey(unittest.TestCase):
             ):
                 result = self.node._verify_secret_key(sock)
 
-        self.assertFalse(result)
+        self.assertEqual(result, (False, "myhash"))
 
     def test_returns_false_on_exception(self):
         sock = MagicMock()
@@ -130,7 +132,7 @@ class TestVerifySecretKey(unittest.TestCase):
             self.node, "recv_framed", side_effect=ConnectionError("boom")
         ):
             result = self.node._verify_secret_key(sock)
-        self.assertFalse(result)
+        self.assertEqual(result, (False, ""))
 
     def test_returns_false_for_unknown_hash(self):
         auth_obj = MagicMock()
@@ -145,7 +147,7 @@ class TestVerifySecretKey(unittest.TestCase):
             ):
                 result = self.node._verify_secret_key(sock)
 
-        self.assertFalse(result)
+        self.assertEqual(result, (False, "unknown_hash"))
 
 
 class TestCloseConn(unittest.TestCase):
@@ -200,21 +202,20 @@ class TestSendFile(unittest.TestCase):
     def test_raises_for_invalid_file_type(self):
         sock = MagicMock()
         with patch("os.path.exists", return_value=True):
-            with patch("os.path.isdir", return_value=False):
-                with self.assertRaises(ValueError):
-                    self.node.send_file(
-                        sock, "/fake/file.zip", "myhash", file_type="BADTYPE"
-                    )
+            with self.assertRaises(ValueError):
+                self.node.send_file(
+                    sock, "/fake/file.zip", "myhash", file_type="BADTYPE"
+                )
 
     def test_sends_file_and_returns_true_on_ack(self):
         fake_data = b"fake zip content"
         sock = MagicMock()
 
-        with patch("os.path.exists", return_value=True), patch(
-            "os.path.isdir", return_value=False
+        with patch("os.path.exists", return_value=True), patch.object(
+            self.node.path_manager,
+            "prepare_transfer_file",
+            return_value=("/fake/model.zip", "model.zip"),
         ), patch("os.path.getsize", return_value=len(fake_data)), patch(
-            "os.path.basename", return_value="model.zip"
-        ), patch(
             "builtins.open", mock_open(read_data=fake_data)
         ), patch.object(
             self.node, "recv_exact", return_value=b"ACK"
