@@ -1,6 +1,8 @@
 
+# Current Challenges
 
+This file lists open technical questions that still need design or implementation work.
 
-1. Soup Models aren't performing well.
-2. How to verify new model weight merger, including loading different datasets, custom loading of datasets...etc.
-3. What about custom files?
+1. Improve the current Soup-based merge behavior.
+2. Define a verification path for merged weights across different datasets, including custom dataset loaders.
+3. Define how custom file types should be transferred and validated.
