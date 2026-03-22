@@ -114,7 +114,9 @@ async def trigger_file_menu():
                 shutil.move(str(ml_obj_path), str(dest_model_obj))
                 metadata.model_obj_path = str(dest_model_obj)
                 metadata.save()
-            elif is_within_directory(str(ml_obj_path), MODELS_DIR):
+            elif ml_obj_path.exists() and is_within_directory(
+                str(ml_obj_path), MODELS_DIR
+            ):
                 print(f"Model object already in {models_dir}")
             else:
                 print(f"Warning: {ml_obj_path} does not exist, will attempt to sync.")
@@ -133,7 +135,9 @@ async def trigger_file_menu():
                 shutil.move(str(weights_path), str(dest_weights))
                 metadata.weights_path = str(dest_weights)
                 metadata.save()
-            elif is_within_directory(str(weights_path), WEIGHTS_PATH):
+            elif weights_path.exists() and is_within_directory(
+                str(weights_path), WEIGHTS_PATH
+            ):
                 print(f"Weights already in {weights_dir}")
             else:
                 print(f"Warning: {weights_path} does not exist, will attempt to sync.")

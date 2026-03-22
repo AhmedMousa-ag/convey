@@ -37,15 +37,32 @@ class MetadataConfig(BaseModel):
 
     @staticmethod
     def load_from_hashed_val(hashed_matadata: str) -> "MetadataConfig":
-        raw_value = get_raw_hashed_raw_value(hashed_matadata)
-        splitted_values = raw_value.split(".")
-        strategy = splitted_values[0].replace(".", "")
-        model_name = splitted_values[1].replace(".", "")
-        # t = splitted_values[2].replace(".", "")
+        raw_value = metadata_hash_pool.get(hashed_matadata)
+        if raw_value is not None:
+            splitted_values = raw_value.split(".")
+            strategy = splitted_values[0].replace(".", "")
+            model_name = splitted_values[1].replace(".", "")
+            return MetadataConfig.parse_file(
+                os.path.join(
+                    METADATA_PATH, model_name + "_" + strategy + CONVERY_FILE_EXT
+                )
+            )
 
-        return MetadataConfig.parse_file(
-            os.path.join(METADATA_PATH, model_name + "_" + strategy + CONVERY_FILE_EXT)
-        )
+        # Fallback path: scan persisted metadata files and rebuild mapping lazily.
+        for file_name in os.listdir(METADATA_PATH):
+            if not file_name.endswith(CONVERY_FILE_EXT):
+                continue
+            file_path = os.path.join(METADATA_PATH, file_name)
+            try:
+                metadata = MetadataConfig.parse_file(file_path)
+            except Exception:
+                continue
+            current_hash = metadata.hash_self()
+            if current_hash == hashed_matadata:
+                add_metadata_pool(current_hash, metadata.get_before_hash())
+                return metadata
+
+        raise KeyError(f"No metadata found for hash '{hashed_matadata}'")
 
     def get_model_name(self) -> str:
         return (

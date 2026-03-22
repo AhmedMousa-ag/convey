@@ -29,6 +29,7 @@ class TransmitterManager:
                     hashed_metadata=self.metadata.hash_self(),
                     latest_update=response_model.last_update,
                     peer_address=self.peer_address,
+                    peer_has_latest=response_model.is_latest,
                 )
                 if need_verifier and latest_peers_addr is not None:
                     self.requester.ask_sync_model(latest_peers_addr)
