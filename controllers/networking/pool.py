@@ -2,6 +2,7 @@ from models.server import ClientsIPAddresses
 from socket import socket
 from typing import List, Dict
 from datetime import datetime
+from controllers.networking.perf_logger import perf_log
 
 # hashed_metadata -> client IP address.
 connection_pool: Dict[str, List[str]] = {}
@@ -69,6 +70,9 @@ def update_connection_p2p_pool(client_ip_address: ClientsIPAddresses, peer_conn)
                 p2p_socket_peer_conn.pop(ip)
                 remove_latest_ip_updated_models(client_ip_address.hashed_metadata, ip)
     connection_pool[client_ip_address.hashed_metadata] = metadata_pool_list
+    perf_log(
+        f"POOL_UPDATE | metadata={client_ip_address.hashed_metadata} | action={'add' if client_ip_address.is_adding else 'remove'} | ip={ip} | pool_size={len(metadata_pool_list)}"
+    )
 
 
 def remove_connection_p2p_pool(hashed_metadata: str, ip: str):

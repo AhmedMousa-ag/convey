@@ -1,9 +1,11 @@
 from configs.metadata import MetadataConfig
+import time
 from typing import Dict
 from models.clients import P2PMessagesTypes
 from controllers.networking.req_rep import Requester, Replier
 from models.clients import ResponseIsLatestModel
 from controllers.verifier.update_verifier import DateVerifier
+from controllers.networking.perf_logger import perf_log
 
 
 class TransmitterManager:
@@ -17,6 +19,8 @@ class TransmitterManager:
         self.peer_address = peer_address
 
     def reply(self, msg_type: P2PMessagesTypes, msg: Dict) -> str | None:
+        t0 = time.time()
+        perf_log(f"ROUTE | type={msg_type.value} | peer={self.peer_address}")
         match msg_type:
             case P2PMessagesTypes.IsLatest:
                 return self.replier.reply_is_latest(msg)
@@ -45,4 +49,5 @@ class TransmitterManager:
             #     self.requester.update_new_weights()
             case _:
                 print(f"Message type {msg_type.value} is not supported.")
+        perf_log(f"ROUTE_DONE | type={msg_type.value} | elapsed={time.time()-t0:.4f}s")
         return None

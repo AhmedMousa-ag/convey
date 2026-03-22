@@ -1,6 +1,7 @@
 import asyncio
 import websockets
 import json
+import time
 from pydantic import BaseModel
 from configs.config import SERVER_URL, WS_CONNECTION_WAIT, CLIENT_PORT
 from controllers.networking.messages import get_msg_sender
@@ -8,18 +9,21 @@ from models.server import ClientsIPAddresses
 from controllers.networking.pool import update_connection_p2p_pool
 from controllers.networking.p2p import p2p_node
 from models.server import SecretMetadataKey, MessagesTypes
+from controllers.networking.perf_logger import perf_log
 
 
 async def read_handler(websocket):
     """Handles receiving messages from the server."""
     try:
         async for message in websocket:
+            t0 = time.time()
             if isinstance(message, str):
                 try:
                     # Validate and parse the message
                     data = json.loads(message)
                     msg_data = data.get("message")
                     msg_type = data.get("msg_type")
+                    perf_log(f"WS_RECV | type={msg_type} | size={len(message)}B | parse_time={time.time()-t0:.4f}s")
                     # If the message type is for changing the secret key
                     if msg_type == MessagesTypes.ChangeSecret.value:
                         secret_data = SecretMetadataKey(**msg_data)
@@ -50,11 +54,12 @@ async def write_handler(websocket):
         message = await get_msg_sender()
 
         if message:
-            # print("Got a message to send")
+            t0 = time.time()
             if isinstance(message, BaseModel):
                 message = message.model_dump_json()
 
             await websocket.send(message)
+            perf_log(f"WS_SEND | size={len(message) if isinstance(message, str) else 'N/A'}B | elapsed={time.time()-t0:.4f}s")
 
         await asyncio.sleep(0)
 
@@ -62,15 +67,21 @@ async def write_handler(websocket):
 async def server_ws_client():
     while True:  # Reconnection Loop
         try:
+            perf_log(f"WS_CONNECT | url={SERVER_URL} | status=attempting")
+            conn_t0 = time.time()
             async with websockets.connect(SERVER_URL) as websocket:
+                perf_log(f"WS_CONNECT | url={SERVER_URL} | status=connected | elapsed={time.time()-conn_t0:.4f}s")
                 # Run both Reader and Writer concurrently
                 await asyncio.gather(read_handler(websocket), write_handler(websocket))
 
         except (websockets.exceptions.ConnectionClosed, OSError) as e:
+            perf_log(f"WS_CONNECT | status=lost | error={e}")
             print(f"Connection lost or failed: {e}")
         except Exception as e:
+            perf_log(f"WS_CONNECT | status=error | error={e}")
             print(f"Unexpected Error: {e}")
 
+        perf_log(f"WS_RECONNECT | wait={WS_CONNECTION_WAIT}s")
         print(f"Reconnecting in {WS_CONNECTION_WAIT} seconds...")
         # CRITICAL FIX: Do not use time.sleep(), use asyncio.sleep()
         await asyncio.sleep(WS_CONNECTION_WAIT)

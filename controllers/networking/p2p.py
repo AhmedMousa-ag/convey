@@ -1,6 +1,7 @@
 import socket
 import threading
 import os
+import time
 from configs.config import CLIENT_PORT, CLIENT_HOST
 from configs.paths import (
     ZIPPED_DIRE,
@@ -13,6 +14,7 @@ import shutil
 from controllers.verifier.update_verifier import ModelVerifier
 from typing import Dict, Tuple
 from models.clients import AuthenticationMessage, FileType
+from controllers.networking.perf_logger import perf_log
 
 
 class TransferPathManager:
@@ -205,11 +207,13 @@ class P2PNode:
 
     def handle_peer(self, conn: socket.socket, addr):
         print(f"Connected by {addr}")
+        perf_log(f"PEER_CONNECTED | addr={addr}")
         self.peers.add(addr)
         try:
             while True:
                 is_verified, hashed_metadata = self._verify_secret_key(conn)
                 if not is_verified:
+                    perf_log(f"AUTH_FAIL | addr={addr}")
                     print(f"Authentication failed for {addr}. Closing connection.")
                     self.close_conn(conn, addr)
                     return
@@ -234,7 +238,7 @@ class P2PNode:
                     FileType.STATIC_MOD.value,
                     FileType.WEIGHTS.value,
                 ]:
-                    # print(f"Will receive file of type {msg_type} from {addr}")
+                    perf_log(f"P2P_RECV_FILE | type={msg_type} | addr={addr}")
 
                     self._receive_file(
                         conn=conn,
@@ -246,6 +250,7 @@ class P2PNode:
                 elif msg_type == "TEXT":
                     try:
                         # print("Receiving TEXT message body...")
+                        t0 = time.time()
                         data = self.recv_framed(conn)
                     except ConnectionError:
                         print(f"Connection closed by {addr} while reading TEXT body")
@@ -256,6 +261,9 @@ class P2PNode:
                     # print(f"Received from {addr}: {data.decode()}")
                     hashed_metadata, msg_type_inner, message = (
                         self.serializer.receive_msg(data.decode())
+                    )
+                    perf_log(
+                        f"P2P_RECV_TEXT | type={msg_type_inner.value} | size={len(data)}B | addr={addr} | elapsed={time.time()-t0:.4f}s"
                     )
                     transmitter = TransmitterManager(
                         hashed_metadata,
@@ -301,6 +309,7 @@ class P2PNode:
             return
 
         print(f"Receiving {file_type} '{filename}' ({filesize} bytes) from {addr}")
+        recv_t0 = time.time()
         metadata = MetadataConfig.load_from_hashed_val(hashed_metadata)
         target_path = self.path_manager.get_target_path(metadata, file_type)
         temp_dire = self.path_manager.get_temp_extract_dir(filename)
@@ -321,6 +330,13 @@ class P2PNode:
 
         # Acknowledge receipt
         conn.sendall(b"ACK")
+        recv_elapsed = time.time() - recv_t0
+        throughput = (
+            (received / recv_elapsed / 1024) if recv_elapsed > 0 and received > 0 else 0
+        )
+        perf_log(
+            f"FILE_RECV | type={file_type} | filename={filename} | size={received}B | addr={addr} | elapsed={recv_elapsed:.4f}s | throughput={throughput:.1f}KB/s"
+        )
 
         try:
             with zipfile.ZipFile(zip_path, "r") as zip_ref:
@@ -371,8 +387,12 @@ class P2PNode:
         threading.Thread(target=run, daemon=True).start()
 
     def connect_to_peer(self, peer_host, peer_port=CLIENT_PORT) -> socket.socket:
+        t0 = time.time()
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((peer_host, peer_port))
+        perf_log(
+            f"PEER_CONNECT | host={peer_host} | port={peer_port} | elapsed={time.time()-t0:.4f}s"
+        )
         print(f"Connected to peer {peer_host}:{peer_port}")
         return s
 
@@ -393,6 +413,7 @@ class P2PNode:
         self._send_secret_key(peer_socket, hashed_metadata)
         peer_socket.sendall(b"TEXT".ljust(10))
         self.send_framed(peer_socket, message.encode())
+        perf_log(f"P2P_SEND_TEXT | size={len(message)}B | metadata={hashed_metadata}")
 
     def send_file(
         self,
@@ -429,6 +450,7 @@ class P2PNode:
 
         filepath, filename = self.path_manager.prepare_transfer_file(filepath)
         filesize = os.path.getsize(filepath)
+        send_t0 = time.time()
         # print(f"Sending {file_type} '{filename}' ({filesize} bytes)")
 
         # FIX 2: Auth must be sent before every message since the receiver
@@ -465,13 +487,26 @@ class P2PNode:
         try:
             ack = self.recv_exact(peer_socket, 3)
         except ConnectionError:
+            perf_log(
+                f"P2P_SEND_FILE | type={file_type} | size={sent}B | status=no_ack | elapsed={time.time()-send_t0:.4f}s"
+            )
             print("Connection closed before ACK was received")
             return False
         print(f"Received ACK: {ack}")
+        send_elapsed = time.time() - send_t0
+        throughput = (
+            (sent / send_elapsed / 1024) if send_elapsed > 0 and sent > 0 else 0
+        )
         if ack == b"ACK":
+            perf_log(
+                f"P2P_SEND_FILE | type={file_type} | size={sent}B | status=ok | elapsed={send_elapsed:.4f}s | throughput={throughput:.1f}KB/s"
+            )
             print("File transfer confirmed by peer")
             return True
         else:
+            perf_log(
+                f"P2P_SEND_FILE | type={file_type} | size={sent}B | status=bad_ack | elapsed={send_elapsed:.4f}s"
+            )
             print("File transfer acknowledgment not received")
             return False
 
