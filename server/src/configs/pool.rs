@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 use tokio::sync::{RwLock, mpsc::UnboundedSender};
 
 type HashedMetadataIpAddress = HashMap<String, Vec<String>>;
@@ -15,14 +15,20 @@ pub async fn get_meta_ip_cloned() -> HashedMetadataIpAddress {
 
 pub async fn add_meta_ip(hashed_metadata: &str, ip_address: &str) {
     let mut conn_pool = get_conn_reference().write().await;
-    let mut ip_addresses = conn_pool.get(hashed_metadata).unwrap_or(&vec![]).clone();
-
-    ip_addresses.push(ip_address.to_string());
-    conn_pool.insert(hashed_metadata.to_string(), ip_addresses);
+    let ips = conn_pool.entry(hashed_metadata.to_string()).or_default();
+    if !ips.contains(&ip_address.to_string()) {
+        ips.push(ip_address.to_string());
+    }
 }
 
-pub async fn remove_meta_ip(hashed_metadata: &str) {
-    get_conn_reference().write().await.remove(hashed_metadata);
+pub async fn remove_meta_ip(hashed_metadata: &str, ip_address: &str) {
+    let mut conn_pool = get_conn_reference().write().await;
+    if let Some(ips) = conn_pool.get_mut(hashed_metadata) {
+        ips.retain(|ip| ip != ip_address);
+        if ips.is_empty() {
+            conn_pool.remove(hashed_metadata);
+        }
+    }
 }
 
 pub async fn get_meta_ip_key(hashed_metadata: &str) -> Vec<String> {
@@ -35,23 +41,36 @@ pub async fn get_meta_ip_key(hashed_metadata: &str) -> Vec<String> {
 
 //-------------------------------------------
 // These channels are used to send messages to all every connected client...etc
-fn get_channel_pool() -> &'static RwLock<HashMap<String, UnboundedSender<String>>> {
-    static CHANNELS_POOL: OnceLock<RwLock<HashMap<String, UnboundedSender<String>>>> =
+fn get_channel_pool() -> &'static RwLock<HashMap<String, Arc<UnboundedSender<String>>>> {
+    static CHANNELS_POOL: OnceLock<RwLock<HashMap<String, Arc<UnboundedSender<String>>>>> =
         OnceLock::new();
     CHANNELS_POOL.get_or_init(|| RwLock::new(HashMap::new()))
 }
-pub async fn get_sender_channel(ip: &str) -> Option<UnboundedSender<String>> {
+pub async fn get_sender_channel(ip: &str) -> Option<Arc<UnboundedSender<String>>> {
     let mapped_ch = get_channel_pool().read().await;
     mapped_ch.get(ip).cloned()
 }
 
-pub async fn insert_sender_chan(ip: &str, sender: UnboundedSender<String>) {
+/// Inserts the sender and returns an `Arc` handle the caller must hold to prove ownership.
+pub async fn insert_sender_chan(
+    ip: &str,
+    sender: UnboundedSender<String>,
+) -> Arc<UnboundedSender<String>> {
+    let arc = Arc::new(sender);
     let mut mapped_ch = get_channel_pool().write().await;
-    mapped_ch.insert(ip.to_string(), sender);
+    mapped_ch.insert(ip.to_string(), arc.clone());
+    arc
 }
 
-pub async fn remover_sender_chan(ip: &str) {
-    get_channel_pool().write().await.remove(ip);
+/// Removes the sender only if the stored entry is the same `Arc` instance as `owned`.
+/// This prevents a reconnecting client's sender from being removed by a stale cleanup task.
+pub async fn remover_sender_chan_if_owned(ip: &str, owned: &Arc<UnboundedSender<String>>) {
+    let mut mapped_ch = get_channel_pool().write().await;
+    if let Some(stored) = mapped_ch.get(ip) {
+        if Arc::ptr_eq(stored, owned) {
+            mapped_ch.remove(ip);
+        }
+    }
 }
 
 //-------------------------------------------

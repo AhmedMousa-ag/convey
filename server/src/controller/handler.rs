@@ -1,6 +1,6 @@
 use crate::configs::pool::{
     add_meta_ip, get_meta_ip_key, get_metadata_secret_key, get_sender_channel,
-    insert_metadata_secret_key, insert_sender_chan, remove_meta_ip, remover_sender_chan,
+    insert_metadata_secret_key, insert_sender_chan, remove_meta_ip, remover_sender_chan_if_owned,
 };
 use crate::controller::secret_manager::generate_secret_key;
 use crate::models::models::{
@@ -24,7 +24,7 @@ async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {
     println!("Connection established from IP: {}", addr);
     let ip_add = addr.ip().to_string();
     let (sender, mut internal_reciver) = unbounded_channel();
-    insert_sender_chan(&ip_add, sender).await;
+    let sender_arc = insert_sender_chan(&ip_add, sender).await;
     let mut client_stored_metadata: Vec<String> = Vec::new();
     loop {
         tokio::select! {
@@ -67,13 +67,15 @@ async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {
         }
     }
     // If reached here, the connection is closed.
-    remover_sender_chan(&ip_add).await;
-    // Run it in another thread in case the client connects again before the cleanup is done.
+    // Run cleanup in a separate task. Use sender_arc to guard against a race where the client
+    // reconnects before cleanup finishes: remover_sender_chan_if_owned only removes the sender
+    // if no new connection has replaced it.
     tokio::spawn(async move {
         for mtdata in client_stored_metadata {
-            remove_meta_ip(&mtdata).await;
+            remove_meta_ip(&mtdata, &ip_add).await;
             inform_metadata_clients(&mtdata, &ip_add, false).await;
         }
+        remover_sender_chan_if_owned(&ip_add, &sender_arc).await;
     });
 }
 
